@@ -1,0 +1,47 @@
+# Scenario 002 — Spread Workspace
+# Objects are placed further apart, making manipulation harder.
+
+scenario:
+  name: spread_workspace
+  description: "Objects spread wider on the table — harder reach"
+
+robot:
+  model: panda
+  model_path: "simulation/models/panda.xml"
+  base_position: [0.0, 0.0, 0.32]
+  home_qpos: [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.04, 0.04]
+
+simulation:
+  timestep: 0.002
+  world_path: "simulation/worlds/tabletop.xml"
+
+objects:
+  red_cube:
+    type: box
+    size: [0.025, 0.025, 0.025]
+    position: [0.50, 0.25, 0.345]
+    orientation: [1.0, 0.0, 0.0, 0.0]
+    material: red_mat
+    mass: 0.05
+
+  blue_cube:
+    type: box
+    size: [0.025, 0.025, 0.025]
+    position: [0.50, -0.25, 0.345]
+    orientation: [1.0, 0.0, 0.0, 0.0]
+    material: blue_mat
+    mass: 0.05
+
+  target_bin:
+    type: box
+    size: [0.06, 0.06, 0.005]
+    position: [0.70, 0.0, 0.325]
+    orientation: [1.0, 0.0, 0.0, 0.0]
+    material: green_mat
+    mass: 0.5
+    static: true
+
+controller:
+  type: position
+  kp: 100.0
+  kv: 20.0

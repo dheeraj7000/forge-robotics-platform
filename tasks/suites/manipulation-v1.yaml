@@ -1,0 +1,7 @@
+# Suite: manipulation-v1
+# Core manipulation tasks for Phase 2 evaluation.
+
+tasks:
+  - pick_red_cube
+  - pick_blue_cube
+  - pick_red_cube_spread

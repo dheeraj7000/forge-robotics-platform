@@ -1,0 +1,28 @@
+# Task: Pick and place the blue cube into the target zone
+
+task:
+  name: pick_blue_cube
+  description: "Move the blue cube into the target bin area"
+  scenario: basic_workspace
+  target_object: blue_cube
+  time_limit: 30.0
+
+  success_criteria:
+    - type: object_in_zone
+      description: "Blue cube is within target zone (xy-plane)"
+      params:
+        object_id: blue_cube
+        zone_center: [0.82, 0.0, 0.345]
+        zone_radius: 0.15
+        use_3d: false
+
+    - type: object_above_height
+      description: "Blue cube is on or above the table surface"
+      params:
+        object_id: blue_cube
+        min_height: 0.30
+
+  metadata:
+    difficulty: easy
+    category: manipulation
+    phase: 2

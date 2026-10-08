@@ -1,0 +1,17 @@
+# Forge default configuration
+# Override per-scenario settings in simulation/scenarios/*.yaml
+
+robot:
+  model: panda
+
+simulation:
+  timestep: 0.002
+  scenario: basic_workspace
+
+ros:
+  joint_state_topic: /forge/joint_states
+  object_state_topic: /forge/object_states
+  joint_command_topic: /forge/joint_commands
+  ee_pose_topic: /forge/ee_pose
+  reset_service: /forge/reset
+  state_publish_rate: 100.0  # Hz

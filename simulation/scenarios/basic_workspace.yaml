@@ -1,0 +1,49 @@
+# Scenario 001 — Basic Workspace
+# Deterministic initial configuration for the Forge tabletop environment.
+# All positions are in meters, relative to the world frame.
+
+scenario:
+  name: basic_workspace
+  description: "Robot with two cubes and a target bin on a tabletop"
+
+robot:
+  model: panda
+  model_path: "simulation/models/panda.xml"
+  base_position: [0.0, 0.0, 0.32]
+  # Home joint configuration (radians) — neutral upright pose
+  home_qpos: [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.04, 0.04]
+
+simulation:
+  timestep: 0.002
+  world_path: "simulation/worlds/tabletop.xml"
+
+objects:
+  red_cube:
+    type: box
+    size: [0.025, 0.025, 0.025]
+    position: [0.72, 0.18, 0.345]
+    orientation: [1.0, 0.0, 0.0, 0.0]  # quaternion (w, x, y, z)
+    material: red_mat
+    mass: 0.05
+
+  blue_cube:
+    type: box
+    size: [0.025, 0.025, 0.025]
+    position: [0.72, -0.18, 0.345]
+    orientation: [1.0, 0.0, 0.0, 0.0]
+    material: blue_mat
+    mass: 0.05
+
+  target_bin:
+    type: box
+    size: [0.08, 0.08, 0.005]
+    position: [0.82, 0.0, 0.325]
+    orientation: [1.0, 0.0, 0.0, 0.0]
+    material: green_mat
+    mass: 0.5
+    static: true  # fixed to table
+
+controller:
+  type: position
+  kp: 100.0
+  kv: 20.0
