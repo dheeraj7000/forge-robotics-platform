@@ -1,0 +1,9 @@
+# Fault profile: gravity shift
+# Gravity reduced to half-strength — objects become lighter.
+
+faults:
+  - type: gravity_shift
+    trigger_time: 4.0
+    description: "Gravity halved at t=4s"
+    params:
+      gravity: [0, 0, -4.905]

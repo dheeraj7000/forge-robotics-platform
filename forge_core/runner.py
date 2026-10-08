@@ -1,7 +1,7 @@
 """Task runner for Forge.
 
 Orchestrates: load scenario → reset → run policy → evaluate → report.
-Optionally records trajectory for replay (Phase 3).
+Supports trajectory recording (Phase 3) and fault injection (Phase 4).
 """
 
 from __future__ import annotations
@@ -9,12 +9,12 @@ from __future__ import annotations
 import json
 import logging
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from forge_core.config import PROJECT_ROOT
 from forge_core.evaluator import Evaluator, EvalResult
+from forge_core.faults import FaultInjector
 from forge_core.policy import Policy
 from forge_core.recorder import TrajectoryBuffer, get_next_run_id, save_run
 from forge_core.simulation import ForgeSimulation
@@ -30,6 +30,7 @@ def run_task(
     policy: Policy,
     verbose: bool = False,
     record: bool = False,
+    fault_injector: FaultInjector | None = None,
 ) -> EvalResult:
     """Execute a task with a policy and return evaluation results.
 
@@ -38,24 +39,26 @@ def run_task(
         policy: Policy that produces joint commands.
         verbose: Log progress.
         record: If True, save trajectory to runs/ directory.
+        fault_injector: Optional fault injector for chaos testing.
 
     Returns:
         EvalResult with success/failure and metrics.
     """
     logger.info("task_run_started: %s with policy %s", task.name, policy.name)
+    if fault_injector and fault_injector.faults:
+        logger.info("faults_active: %s", fault_injector.fault_names)
+
     wall_start = time.monotonic()
 
     sim = ForgeSimulation(scenario_name=task.scenario)
     sim.reset()
     policy.reset(sim)
 
-    # Recording buffer
     trajectory = TrajectoryBuffer() if record else None
 
     steps = 0
     max_sim_time = task.time_limit
     timed_out = False
-    last_action = None
 
     while not policy.done:
         if sim.sim_time >= max_sim_time:
@@ -64,10 +67,17 @@ def run_task(
             break
 
         targets = policy.act(sim)
+
+        # Fault injection: filter targets before applying
+        if fault_injector:
+            targets = fault_injector.pre_step(sim, targets)
+
         sim.set_joint_targets(targets)
         sim.step(STEPS_PER_CYCLE)
         steps += STEPS_PER_CYCLE
-        last_action = targets
+
+        if fault_injector:
+            fault_injector.post_step(sim)
 
         # Record state
         if trajectory is not None:
@@ -102,6 +112,10 @@ def run_task(
     result.steps = steps
     result.timed_out = timed_out
 
+    # Add fault info to metrics
+    if fault_injector and fault_injector.faults:
+        result.metrics["faults"] = fault_injector.fault_names
+
     # Save recorded run
     if trajectory is not None:
         run_id = get_next_run_id()
@@ -116,6 +130,8 @@ def run_task(
             "steps": steps,
             "timed_out": timed_out,
         }
+        if fault_injector and fault_injector.faults:
+            metadata["faults"] = fault_injector.fault_names
         run_dir = save_run(
             run_id=run_id,
             trajectory=trajectory,
@@ -137,21 +153,31 @@ def run_task(
 
 
 def run_task_by_name(
-    task_name: str, policy: Policy, verbose: bool = False, record: bool = False
+    task_name: str,
+    policy: Policy,
+    verbose: bool = False,
+    record: bool = False,
+    fault_injector: FaultInjector | None = None,
 ) -> EvalResult:
     """Load a task by name and run it."""
     task = load_task(task_name)
-    return run_task(task, policy, verbose=verbose, record=record)
+    return run_task(task, policy, verbose=verbose, record=record,
+                    fault_injector=fault_injector)
 
 
 def run_suite(
-    task_names: list[str], policy: Policy, verbose: bool = False, record: bool = False
+    task_names: list[str],
+    policy: Policy,
+    verbose: bool = False,
+    record: bool = False,
+    fault_injector: FaultInjector | None = None,
 ) -> list[EvalResult]:
     """Run multiple tasks with the same policy."""
     results = []
     for i, name in enumerate(task_names, 1):
         logger.info("suite_progress: %d/%d — %s", i, len(task_names), name)
-        result = run_task_by_name(name, policy, verbose=verbose, record=record)
+        result = run_task_by_name(name, policy, verbose=verbose, record=record,
+                                   fault_injector=fault_injector)
         results.append(result)
     return results
 

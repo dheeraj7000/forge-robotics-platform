@@ -85,6 +85,8 @@ def main():
     parser.add_argument("--save", action="store_true", help="Save results to runs/")
     parser.add_argument("--record", action="store_true",
                         help="Record trajectories to runs/run_XXXXX/")
+    parser.add_argument("--fault", type=str, default=None,
+                        help="Fault profile name for chaos testing")
     parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args()
@@ -104,11 +106,17 @@ def main():
         policy_kwargs["target_object"] = args.target_object
     policy = create_policy(args.policy, **policy_kwargs)
 
+    # Create fault injector if requested
+    fault_injector = None
+    if args.fault:
+        from forge_core.faults import FaultInjector
+        fault_injector = FaultInjector.from_profile(args.fault)
+
     results = []
 
     if args.task:
         result = run_task_by_name(args.task, policy, verbose=args.verbose,
-                                   record=args.record)
+                                   record=args.record, fault_injector=fault_injector)
         results.append(result)
         print()
         print(result.summary())
@@ -117,7 +125,7 @@ def main():
         task_names = load_suite(args.suite)
         print(f"\nRunning suite '{args.suite}' ({len(task_names)} tasks)...\n")
         results = run_suite(task_names, policy, verbose=args.verbose,
-                            record=args.record)
+                            record=args.record, fault_injector=fault_injector)
         print(format_suite_summary(results))
 
         for r in results:
@@ -128,7 +136,7 @@ def main():
         task_names = list_tasks()
         print(f"\nRunning all {len(task_names)} tasks...\n")
         results = run_suite(task_names, policy, verbose=args.verbose,
-                            record=args.record)
+                            record=args.record, fault_injector=fault_injector)
         print(format_suite_summary(results))
 
     # Save results if requested

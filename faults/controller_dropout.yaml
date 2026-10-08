@@ -1,0 +1,8 @@
+# Fault profile: controller dropout
+# All commands are dropped for 2 seconds — robot goes limp.
+
+faults:
+  - type: controller_dropout
+    trigger_time: 5.0
+    duration: 2.0
+    description: "Drop all commands for 2 seconds at t=5s"

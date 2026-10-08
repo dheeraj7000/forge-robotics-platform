@@ -1,0 +1,24 @@
+# Fault profile: cascading failures
+# Multiple faults stacked: sensor noise + actuator stuck + object moved.
+
+faults:
+  - type: sensor_noise
+    trigger_time: 2.0
+    duration: 8.0
+    description: "Noisy sensors for 8 seconds starting at t=2"
+    params:
+      std: 0.03
+
+  - type: actuator_stuck
+    trigger_time: 5.0
+    duration: 3.0
+    description: "Joint 2 stuck for 3 seconds at t=5"
+    params:
+      joints: [1]
+
+  - type: object_moved
+    trigger_time: 8.0
+    description: "Red cube teleported at t=8"
+    params:
+      object_id: red_cube
+      new_position: [0.55, 0.0, 0.245]

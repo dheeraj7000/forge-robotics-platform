@@ -1,0 +1,10 @@
+# Fault profile: noisy joint sensors
+# Gaussian noise added to joint position readings for 10 seconds.
+
+faults:
+  - type: sensor_noise
+    trigger_time: 3.0
+    duration: 10.0
+    description: "Add noise (std=0.05 rad) to joint position readings"
+    params:
+      std: 0.05

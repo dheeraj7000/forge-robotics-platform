@@ -1,0 +1,10 @@
+# Fault profile: object moved mid-task
+# The target object is teleported to a different position at t=5s.
+
+faults:
+  - type: object_moved
+    trigger_time: 5.0
+    description: "Teleport red_cube to a new position at t=5s"
+    params:
+      object_id: red_cube
+      new_position: [0.6, -0.1, 0.245]
