@@ -7,27 +7,22 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 2 — Task Execution & Evaluation
+## Current Status: Phase 4 — Failure Injection
 
-Phase 2 adds task execution, scripted policies, and an evaluation framework
-on top of the Phase 1 simulation foundation.
+Phases 1–4 are complete: simulation foundation, task evaluation,
+telemetry/replay, and chaos testing.
 
 ### What's included
 
-- MuJoCo simulation with a 7-DOF Panda arm, tabletop, and manipulable objects
-- Three ROS 2 nodes: `forge_simulator`, `forge_controller`, `forge_state`
-- Joint state and object state publishing via standard ROS message types
-- Joint position command interface
-- Deterministic scenario configuration (YAML)
-- Reset functionality
-- Health check (`forge doctor`)
-- **Task specification system** (YAML task definitions with success criteria)
-- **Scripted push policy** (deterministic, no ML)
-- **Evaluation engine** with structured metrics and per-criterion results
-- **Benchmark CLI** (`forge_eval.py`) for running tasks, suites, and saving results
-- **Multiple scenarios** (basic_workspace, spread_workspace)
-- **Test suite** (`manipulation-v1`) with 3 tasks
-- Automated tests (60 passing)
+- **Simulation** — MuJoCo Menagerie Franka Panda (mesh collision, accurate kinematics)
+- **ROS 2 integration** — three nodes publishing joint/object state via standard messages
+- **Task evaluation** — YAML task definitions with measurable success criteria
+- **Scripted policy** — deterministic pick-and-place waypoint sequence
+- **Benchmark CLI** — run tasks, suites, save results
+- **Telemetry** — per-cycle trajectory recording (joint state, EE pose, objects, actions)
+- **Replay** — load and inspect any recorded run at any timestep
+- **Chaos testing** — 6 fault types, composable YAML profiles, compare mode
+- **88 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
@@ -40,103 +35,76 @@ Those belong to later phases.
 
 - Ubuntu 22.04/24.04
 - Python 3.10+
-- ROS 2 Humble (22.04) or Jazzy (24.04)
+- ROS 2 Humble or Jazzy (optional — evaluation works without ROS)
 
 ### Install
 
 ```bash
-# Install Python deps
-cd /root/forge
-pip install mujoco numpy PyYAML pytest
-
-# Build ROS workspace
-cd ros2_ws
-colcon build --symlink-install
-source install/setup.bash
-```
-
-### Run
-
-```bash
-# Option A: Single process (recommended)
-python3 scripts/run_forge.py
-
-# Option B: ROS 2 launch
-ros2 launch forge_sim forge_launch.py
+pip install mujoco mujoco_menagerie numpy PyYAML pytest
 ```
 
 ### Verify
 
 ```bash
-# Unit tests (no ROS needed)
-python3 -m pytest tests/unit/ -v
-
-# Health check
-python3 scripts/forge_doctor.py
-
-# Echo joint state (requires running system)
-ros2 topic echo /forge/joint_states --once
+python3 -m pytest tests/ -v     # 88 tests, no ROS needed
+python3 scripts/forge_doctor.py  # health check
 ```
 
-### Evaluate tasks
+### Evaluate a task
 
 ```bash
-# List available tasks and suites
-python3 scripts/forge_eval.py --list
-
-# Run a single task
 python3 scripts/forge_eval.py --task pick_red_cube
-
-# Run the manipulation suite
 python3 scripts/forge_eval.py --suite manipulation-v1
-
-# Save results to runs/ directory
-python3 scripts/forge_eval.py --suite manipulation-v1 --save
 ```
 
-### Send a command
+### Record a run
 
 ```bash
-ros2 topic pub /forge/joint_commands sensor_msgs/msg/JointState \
-  "{position: [0.5, -0.3, 0.2, -1.5, 0.1, 1.2, 0.3]}" --once
+python3 scripts/forge_eval.py --task pick_red_cube --record
+python3 scripts/forge_replay.py --list
+python3 scripts/forge_replay.py runs/run_00001/
 ```
 
-### Reset
+### Chaos testing
 
 ```bash
-ros2 service call /forge/reset std_srvs/srv/Trigger
+python3 scripts/forge_chaos.py --list
+python3 scripts/forge_chaos.py --task pick_red_cube --fault object_moved
+python3 scripts/forge_chaos.py --task pick_red_cube --fault cascading --compare
+python3 scripts/forge_chaos.py --task pick_red_cube --inject controller_dropout --at 3 --duration 2
+```
+
+### ROS 2 (optional)
+
+```bash
+python3 scripts/run_forge.py                              # start system
+ros2 topic echo /forge/joint_states --once                # read state
+ros2 service call /forge/reset std_srvs/srv/Trigger       # reset
 ```
 
 ## Project Structure
 
 ```
 forge/
-├── README.md
-├── pyproject.toml
-├── forge_core/              # Shared Python library (no ROS dependency)
-│   ├── config.py            # YAML configuration loading
+├── forge_core/              # Core library (no ROS dependency)
 │   ├── simulation.py        # MuJoCo simulation engine
+│   ├── menagerie.py         # Menagerie model locator
 │   ├── task.py              # Task specification loading
 │   ├── policy.py            # Policy interface + scripted policies
 │   ├── evaluator.py         # Success criteria evaluation
-│   └── runner.py            # Task execution orchestrator
+│   ├── runner.py            # Task execution orchestrator
+│   ├── faults.py            # Fault injection system
+│   ├── recorder.py          # Trajectory recording
+│   ├── replay.py            # Run replay and inspection
+│   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
 │   ├── forge_control/       # Joint command controller
 │   └── forge_state/         # Robot state publisher
 ├── simulation/
-│   ├── models/              # Robot MJCF models
+│   ├── models/              # Robot MJCF models (Menagerie)
 │   ├── worlds/              # Scene definitions
 │   └── scenarios/           # YAML scenario configurations
-├── tests/
-│   ├── unit/                # MuJoCo-only tests (no ROS)
-│   └── integration/         # Acceptance tests
-├── scripts/
-│   ├── run_forge.py         # Single-process launcher
-│   ├── forge_doctor.py      # Health check
-│   └── forge_eval.py        # Benchmark CLI
-├── config/
-│   └── default.yaml         # Default configuration
 ├── tasks/                   # Task YAML definitions
 │   ├── pick_red_cube.yaml
 │   ├── pick_blue_cube.yaml
@@ -144,16 +112,60 @@ forge/
 │   ├── pick_red_cube_spread.yaml
 │   └── suites/
 │       └── manipulation-v1.yaml
-├── runs/                    # Evaluation result outputs
+├── faults/                  # Fault profile YAML definitions
+│   ├── object_moved.yaml
+│   ├── sensor_noise.yaml
+│   ├── controller_dropout.yaml
+│   ├── gravity_shift.yaml
+│   └── cascading.yaml
+├── runs/                    # Recorded run outputs
+├── tests/
+│   ├── unit/                # 81 unit tests
+│   └── integration/         # Acceptance tests
+├── scripts/
+│   ├── run_forge.py         # Single-process ROS 2 launcher
+│   ├── forge_doctor.py      # Health check
+│   ├── forge_eval.py        # Task evaluation CLI
+│   ├── forge_chaos.py       # Chaos testing CLI
+│   └── forge_replay.py      # Run replay CLI
+├── config/
+│   └── default.yaml
 └── docs/
-    ├── architecture.md
-    └── setup.md
+    ├── architecture.md      # System design (all phases)
+    └── setup.md             # Installation and usage guide
 ```
+
+## Fault Types
+
+| Type | Effect |
+|------|--------|
+| `object_moved` | Teleport an object to a new position mid-run |
+| `sensor_noise` | Gaussian noise on joint position readings |
+| `sensor_delay` | Return stale robot state for N cycles |
+| `actuator_stuck` | Freeze specific joints at current value |
+| `controller_dropout` | Zero all commands — robot goes limp |
+| `gravity_shift` | Change gravity vector mid-run |
+
+## Phase Roadmap
+
+| Phase | Status | Capability |
+|-------|--------|-----------|
+| 1 | Done | Simulation foundation |
+| 2 | Done | Task execution & evaluation |
+| 3 | Done | Telemetry & replay |
+| 4 | Done | Failure injection / chaos testing |
+| 5 | — | Perception (camera + OpenCV) |
+| 6 | — | Learned policy (PyTorch) |
+| 7 | — | ML infrastructure (experiment tracking, model registry) |
+| 8 | — | CI/CD (regression evaluation) |
+| 9 | — | Edge deployment (ONNX, TensorRT) |
+| 10 | — | Fleet & OTA |
+| 11 | — | Physical robot |
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — system design and component responsibilities
-- [Setup Guide](docs/setup.md) — full installation and verification instructions
+- [Architecture](docs/architecture.md) — system design across all phases
+- [Setup Guide](docs/setup.md) — installation, usage, and all CLI commands
 
 ## License
 

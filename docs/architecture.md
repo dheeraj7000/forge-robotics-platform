@@ -1,178 +1,239 @@
-# Forge — Architecture (Phase 1)
+# Forge — Architecture
 
 ## Overview
 
-Forge Phase 1 implements the **Robotics Simulation Foundation**: a reproducible ROS 2 system
-that controls a simulated Franka Panda arm in MuJoCo and exposes robot/object state through
-ROS topics.
+Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
+It supports a lifecycle of develop → simulate → evaluate → record →
+detect failures → replay → improve.
+
+The current implementation covers Phases 1–4:
+simulation, task evaluation, telemetry/replay, and failure injection.
 
 ## System Diagram
 
 ```
-                     ┌─────────────────────┐
-                     │   ROS 2 Command      │
-                     │  /forge/joint_commands│
-                     └─────────┬────────────┘
-                               │
-                               ▼
-┌──────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│ forge_state   │◄───│ forge_simulator   │◄───│ forge_controller  │
-│               │    │                  │    │                  │
-│ Publishes:    │    │ Owns:            │    │ Receives:        │
-│ - JointState  │    │ - MuJoCo model   │    │ - Joint commands │
-│ - EE Pose     │    │ - Sim stepping   │    │ Applies:         │
-│               │    │ - Object state   │    │ - Actuator ctrl  │
-│               │    │ - Reset service  │    │                  │
-└──────┬───────┘    └──────┬───────────┘    └──────────────────┘
-       │                   │
-       ▼                   ▼
-  /forge/joint_states  /forge/object_states
-  /forge/ee_pose       /forge/reset (service)
+  Task YAML + Fault Profile
+        │
+        ▼
+  ┌───────────┐     ┌──────────┐
+  │  Runner    │────▶│ Recorder │──▶ runs/run_XXXXX/
+  │            │     └──────────┘      metadata.json
+  │ load       │                       trajectory.npz
+  │ reset      │     ┌──────────┐      config.yaml
+  │ inject     │────▶│ Faults   │      result.json
+  │ loop:      │     └──────────┘
+  │  policy    │
+  │  sim.step  │     ┌──────────┐
+  │ evaluate   │────▶│Evaluator │──▶ EvalResult
+  └─────┬──────┘     └──────────┘
+        │
+        ▼
+  ForgeSimulation (MuJoCo)
+  ┌─────────────────────────────┐
+  │ Menagerie Panda + Table     │
+  │ + Objects (freejoint)       │
+  │                             │
+  │ step / reset / query state  │
+  └─────────────────────────────┘
+        │
+        ▼
+  ROS 2 Nodes (optional)
+  ┌──────────┐ ┌────────────┐ ┌──────────┐
+  │forge_sim │ │forge_control│ │forge_state│
+  └──────────┘ └────────────┘ └──────────┘
+  /forge/object_states  /forge/joint_commands  /forge/joint_states
+  /forge/ee_pose        /forge/reset (srv)
 ```
-
-## Component Responsibilities
-
-### forge_core (Python library, no ROS dependency)
-
-- **config.py**: Loads YAML scenario/configuration files
-- **simulation.py**: MuJoCo simulation wrapper — load, step, reset, query state
-
-### forge_simulator (ROS 2 node)
-
-- Owns the MuJoCo simulation lifecycle
-- Publishes object ground-truth state (`geometry_msgs/PoseArray`)
-- Publishes end-effector pose (`geometry_msgs/PoseStamped`)
-- Provides reset service (`std_srvs/Trigger`)
-
-### forge_controller (ROS 2 node)
-
-- Subscribes to `/forge/joint_commands` (`sensor_msgs/JointState`)
-- Applies joint position targets to MuJoCo actuators
-
-### forge_state (ROS 2 node)
-
-- Publishes joint state (`sensor_msgs/JointState`) on `/forge/joint_states`
-- Publishes end-effector pose on `/forge/ee_pose`
-
-## ROS Topics & Services
-
-| Interface | Type | Direction |
-|-----------|------|-----------|
-| `/forge/joint_states` | `sensor_msgs/JointState` | Published |
-| `/forge/object_states` | `geometry_msgs/PoseArray` | Published |
-| `/forge/ee_pose` | `geometry_msgs/PoseStamped` | Published |
-| `/forge/joint_commands` | `sensor_msgs/JointState` | Subscribed |
-| `/forge/reset` | `std_srvs/Trigger` | Service |
-
-## Message Types
-
-All messages use **standard ROS types**. No custom message types are used in Phase 1.
-
-## Simulation Engine
-
-- **Physics**: MuJoCo with implicit integrator, 0.002s timestep
-- **Robot**: Franka Panda 7-DOF arm + 2-finger gripper (simplified MJCF)
-- **Control**: Position actuators with PD gains (kp=100, kv=20)
-- **Scene**: Tabletop with objects defined by scenario YAML
-
-## Configuration
-
-All scenario parameters are in YAML files under `simulation/scenarios/`.
-No hardcoded positions, gains, or model paths.
-
-## Design Decisions
-
-1. **Single-process composition**: All three nodes share one MuJoCo instance in the
-   recommended run mode. This avoids inter-process state synchronization.
-
-2. **forge_core has no ROS dependency**: The simulation engine can be tested with
-   pytest alone, without launching ROS.
-
-3. **Standard ROS message types only**: Per FR-3/FR-4, no custom msgs.
-
-4. **Position control**: Phase 1 uses position actuators — motion planning is not
-   required (FR-5).
-
-5. **Simplified Panda MJCF**: A kinematically accurate but geometrically simplified
-   model is used. The joint limits match the real Panda. Can be swapped for the
-   MuJoCo Menagerie model.
-
 
 ---
 
-# Phase 2 — Task Execution & Evaluation
+## Phase 1 — Simulation Foundation
 
-## Overview
+### Robot Model
 
-Phase 2 adds the ability to define manipulation tasks, run them with policies,
-and evaluate success/failure with structured metrics.
+The simulation uses the **MuJoCo Menagerie Franka Emika Panda** — a
+mesh-based model with accurate collision geometry and kinematics.
+The model is downloaded automatically via the `mujoco_menagerie` package.
 
-## Architecture
+- 7-DOF arm: `joint1`–`joint7`
+- 2 coupled finger joints via tendon: `finger_joint1`, `finger_joint2`
+- 8 actuators: 7 arm (general/affine bias) + 1 finger (tendon-coupled, 0–255)
+- EE tracking via the `hand` body
+
+### Simulation Engine — `forge_core/simulation.py`
+
+- Loads Menagerie Panda + scene objects from scenario YAML
+- Writes a temp XML with `<include file="panda.xml"/>` in the Menagerie cache dir
+- Owns step, reset, and state queries
+- No ROS dependency — testable standalone with pytest
+
+### ROS 2 Nodes
+
+| Node | Responsibility |
+|------|---------------|
+| `forge_simulator` | Simulation lifecycle, object state, reset service |
+| `forge_controller` | Subscribes `/forge/joint_commands`, applies actuator targets |
+| `forge_state` | Publishes `/forge/joint_states` and `/forge/ee_pose` |
+
+All topics use standard ROS message types — no custom messages.
+
+### Configuration
+
+Scenarios are YAML files in `simulation/scenarios/`. They define the robot
+home position, object types/positions, and simulation parameters.
+
+---
+
+## Phase 2 — Task Execution & Evaluation
+
+### Task Specification — `forge_core/task.py`
+
+Tasks are YAML files in `tasks/` that define:
+- Scenario to load
+- Target object
+- Time limit
+- Success criteria (measurable conditions)
+
+Criterion types: `object_in_zone`, `object_above_height`,
+`object_distance_to`, `robot_at_home`.
+
+### Policy Interface — `forge_core/policy.py`
+
+```python
+class Policy(ABC):
+    def reset(self, sim: ForgeSimulation) -> None: ...
+    def act(self, sim: ForgeSimulation) -> np.ndarray: ...
+    def done(self) -> bool: ...
+```
+
+Built-in policies:
+- `ScriptedPickAndPlace` — deterministic waypoint sequence
+- `NullPolicy` — do-nothing baseline
+
+The interface is designed so learned policies (Phase 6) can be
+drop-in replacements.
+
+### Evaluator — `forge_core/evaluator.py`
+
+Checks each criterion against simulation state and returns structured
+`EvalResult` with per-criterion pass/fail, distance metrics, and
+aggregate run metrics.
+
+### Runner — `forge_core/runner.py`
+
+Orchestrates: load scenario → reset → run policy loop → evaluate.
+Supports recording and fault injection.
+
+### CLI — `scripts/forge_eval.py`
 
 ```
-Task YAML
-  ↓
-TaskSpec (task.py)
-  ↓
-Runner (runner.py)
-  ├── Load scenario → ForgeSimulation
-  ├── Reset simulation
-  ├── Reset policy
-  ├── Loop: policy.act() → sim.set_joint_targets() → sim.step()
-  ├── Evaluate criteria → Evaluator (evaluator.py)
-  └── Return EvalResult
-  ↓
-CLI (forge_eval.py)
-  ├── --task, --suite, --all
-  ├── Summary table
-  └── JSON result files (runs/)
+forge_eval.py --task pick_red_cube
+forge_eval.py --suite manipulation-v1
+forge_eval.py --all --save --record
+forge_eval.py --task pick_red_cube --fault object_moved
 ```
 
-## New Components
+---
 
-### forge_core/task.py — Task Specification
-- Loads YAML task definitions from `tasks/`
-- Defines success criteria (object_in_zone, object_above_height, etc.)
-- Supports test suites (`tasks/suites/`)
+## Phase 3 — Telemetry & Replay
 
-### forge_core/policy.py — Policy Interface
-- Abstract `Policy` base class: `reset()`, `act()`, `done`
-- `ScriptedPickAndPlace`: deterministic waypoint push policy
-- `NullPolicy`: do-nothing baseline
-- Policy registry for CLI access
+### Recorder — `forge_core/recorder.py`
 
-### forge_core/evaluator.py — Evaluation Engine
-- Checks success criteria against simulation state
-- Returns structured `EvalResult` with per-criterion results and metrics
-- Criterion types: `object_in_zone`, `object_above_height`, `object_distance_to`, `robot_at_home`
+Captures per-cycle snapshots during task execution:
+- Joint positions, velocities
+- End-effector pose
+- Object positions and orientations
+- Actions (joint targets sent)
+- Timestamps
 
-### forge_core/runner.py — Task Runner
-- Orchestrates: load → reset → run policy → evaluate
-- Supports single tasks, suites, and result saving
+### Run Format
 
-### scripts/forge_eval.py — Benchmark CLI
-- `forge_eval.py --task pick_red_cube`
-- `forge_eval.py --suite manipulation-v1`
-- `forge_eval.py --all --save`
-- `forge_eval.py --list`
+```
+runs/run_00001/
+  metadata.json     — run ID, task, policy, timestamp, success
+  trajectory.npz    — numpy arrays of all recorded signals
+  config.yaml       — scenario config snapshot
+  result.json       — evaluation result
+```
 
-## Design Decisions
+Trajectory storage uses numpy `.npz` (compressed). MCAP support is
+planned for a future iteration.
 
-1. **No ROS dependency in task execution**: The runner operates directly on
-   `ForgeSimulation`, keeping evaluation fast and testable without ROS.
+### Replay — `forge_core/replay.py`
 
-2. **YAML task definitions**: Tasks are data, not code. New tasks can be added
-   without modifying Python.
+Loads a run directory and provides:
+- Run summary (task, result, object displacement)
+- State query at any step index or simulation time
+- Object trajectory analysis
 
-3. **Policy interface designed for future ML**: The `Policy.act()` interface
-   takes the simulation and returns joint targets — same interface a learned
-   policy will use.
+### CLI — `scripts/forge_replay.py`
 
-4. **Scripted policy uses push strategy**: The simplified Panda MJCF model's
-   workspace geometry makes grasping unreliable. The scripted policy pushes
-   the cube toward the target using arm sweep. A proper Menagerie model or
-   IK solver would enable true pick-and-place.
+```
+forge_replay.py --list
+forge_replay.py runs/run_00001/
+forge_replay.py runs/run_00001/ --step 50
+forge_replay.py runs/run_00001/ --time 5.0
+```
 
-5. **Suite results show PASS/FAIL mix**: The `manipulation-v1` suite produces
-   1 PASS (red cube) and 2 FAILs (blue cube, spread scenario), demonstrating
-   the evaluator correctly distinguishes success from failure.
+---
+
+## Phase 4 — Failure Injection / Chaos Testing
+
+### Fault System — `forge_core/faults.py`
+
+Faults are composable perturbations injected during task execution.
+Each fault has a trigger time, optional duration, and type-specific params.
+
+| Fault Type | Effect |
+|------------|--------|
+| `object_moved` | Teleport an object mid-run |
+| `sensor_noise` | Gaussian noise on joint position readings |
+| `sensor_delay` | Return stale robot state for N cycles |
+| `actuator_stuck` | Freeze specific joints at current value |
+| `controller_dropout` | Zero all commands — robot goes limp |
+| `gravity_shift` | Change gravity vector mid-run |
+
+### Fault Profiles
+
+YAML files in `faults/` define sets of faults:
+
+```yaml
+faults:
+  - type: object_moved
+    trigger_time: 5.0
+    params:
+      object_id: red_cube
+      new_position: [0.6, -0.1, 0.245]
+```
+
+Built-in profiles: `object_moved`, `sensor_noise`, `controller_dropout`,
+`gravity_shift`, `cascading` (multi-fault stack).
+
+### Integration
+
+The `FaultInjector` wraps a list of faults and integrates with the runner:
+- `pre_step()` — applies faults and filters joint targets
+- `filter_state()` — modifies robot state before the policy sees it
+- Faults compose: multiple faults stack in sequence
+
+### CLI — `scripts/forge_chaos.py`
+
+```
+forge_chaos.py --list
+forge_chaos.py --task pick_red_cube --fault object_moved
+forge_chaos.py --task pick_red_cube --inject controller_dropout --at 3.0 --duration 2.0
+forge_chaos.py --task pick_red_cube --fault cascading --compare
+```
+
+The `--compare` flag runs baseline (no faults) and faulted side by side.
+
+---
+
+## Design Principles
+
+1. **forge_core has no ROS dependency** — everything can be tested with pytest alone
+2. **YAML-driven configuration** — scenarios, tasks, faults are data, not code
+3. **Standard ROS message types only** — no custom messages
+4. **Policy interface is ML-ready** — same `reset/act/done` interface for scripted and learned policies
+5. **Faults compose** — stack any combination in a profile
+6. **Runs are self-contained** — each run directory has everything needed to understand and reproduce it

@@ -4,8 +4,8 @@
 
 - **OS**: Ubuntu 22.04 or 24.04
 - **Python**: 3.10+
-- **RAM**: 16 GB (recommended)
-- **GPU**: Not required for Phase 1
+- **RAM**: 16 GB recommended
+- **GPU**: Not required (Phases 1–4 are CPU-only)
 
 ## Step 1: Install ROS 2
 
@@ -43,26 +43,27 @@ source /opt/ros/jazzy/setup.bash
 
 ```bash
 cd /root/forge
-pip install mujoco numpy PyYAML
-pip install pytest pytest-timeout  # for testing
+pip install mujoco mujoco_menagerie numpy PyYAML
+pip install pytest  # for testing
 ```
+
+The first run will download the Menagerie Panda model (~3 MB) automatically.
 
 ## Step 3: Verify Installation
 
-### Quick check (no ROS needed)
-
 ```bash
 cd /root/forge
-python3 -m pytest tests/unit/ -v
-```
 
-### Health check
+# Run all tests (no ROS needed)
+python3 -m pytest tests/ -v
 
-```bash
+# Health check (checks MuJoCo + simulation without ROS)
 python3 scripts/forge_doctor.py
 ```
 
-## Step 4: Build ROS 2 Workspace
+## Step 4: Build ROS 2 Workspace (optional)
+
+Only needed if you want to use the ROS 2 topic/service interface.
 
 ```bash
 cd /root/forge/ros2_ws
@@ -75,7 +76,6 @@ source install/setup.bash
 ### Option A: Single-process (recommended for development)
 
 ```bash
-cd /root/forge
 python3 scripts/run_forge.py
 ```
 
@@ -91,37 +91,72 @@ ros2 launch forge_sim forge_launch.py
 In a second terminal:
 
 ```bash
-# Check topics
 ros2 topic list
-
-# Echo joint state
 ros2 topic echo /forge/joint_states --once
-
-# Echo object state
-ros2 topic echo /forge/object_states --once
-
-# Send a joint command
-ros2 topic pub /forge/joint_commands sensor_msgs/msg/JointState \
-  "{position: [0.5, -0.3, 0.2, -1.5, 0.1, 1.2, 0.3]}" --once
-
-# Reset simulation
 ros2 service call /forge/reset std_srvs/srv/Trigger
-
-# Full health check
 python3 scripts/forge_doctor.py
+```
+
+## Task Evaluation
+
+```bash
+# List tasks and suites
+python3 scripts/forge_eval.py --list
+
+# Run a task
+python3 scripts/forge_eval.py --task pick_red_cube
+
+# Run with recording
+python3 scripts/forge_eval.py --task pick_red_cube --record
+
+# Run the manipulation suite
+python3 scripts/forge_eval.py --suite manipulation-v1
+
+# Run with fault injection
+python3 scripts/forge_eval.py --task pick_red_cube --fault object_moved
+```
+
+## Chaos Testing
+
+```bash
+# List fault profiles and types
+python3 scripts/forge_chaos.py --list
+
+# Run with a fault profile
+python3 scripts/forge_chaos.py --task pick_red_cube --fault object_moved
+
+# Quick inline fault
+python3 scripts/forge_chaos.py --task pick_red_cube --inject controller_dropout --at 3.0 --duration 2.0
+
+# Compare baseline vs faulted
+python3 scripts/forge_chaos.py --task pick_red_cube --fault cascading --compare
+```
+
+## Replay Recorded Runs
+
+```bash
+# List recorded runs
+python3 scripts/forge_replay.py --list
+
+# Show run summary
+python3 scripts/forge_replay.py runs/run_00001/
+
+# Inspect state at step 50
+python3 scripts/forge_replay.py runs/run_00001/ --step 50
+
+# Inspect state at time 5.0s
+python3 scripts/forge_replay.py runs/run_00001/ --time 5.0
 ```
 
 ## Running Tests
 
 ```bash
-cd /root/forge
-
-# Unit tests (no ROS needed)
-python3 -m pytest tests/unit/ -v
-
-# All tests
+# All tests (88 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
-# Specific test
+# Specific module
+python3 -m pytest tests/unit/test_faults.py -v
+
+# Specific test class
 python3 -m pytest tests/unit/test_simulation.py::TestReset -v
 ```
