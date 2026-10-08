@@ -34,7 +34,7 @@ class TestPolicyInterface:
         policy.reset(sim)
         assert not policy.done
         targets = policy.act(sim)
-        assert len(targets) == 9  # 7 arm + 2 finger
+        assert len(targets) == 8  # 7 arm + 1 finger actuator
 
     def test_null_policy_eventually_done(self, sim):
         policy = NullPolicy()
@@ -47,7 +47,7 @@ class TestPolicyInterface:
         policy = ScriptedPickAndPlace(target_object="red_cube")
         policy.reset(sim)
         targets = policy.act(sim)
-        assert len(targets) == 9
+        assert len(targets) == 8  # 7 arm + 1 finger actuator
 
     def test_scripted_policy_eventually_done(self, sim):
         policy = ScriptedPickAndPlace(target_object="red_cube")

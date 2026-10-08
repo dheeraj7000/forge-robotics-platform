@@ -1,5 +1,4 @@
-# Task: Pick and place the red cube into the target zone
-# This is the canonical Phase 2 task.
+# Task: Move the red cube into the target zone
 
 task:
   name: pick_red_cube
@@ -13,15 +12,15 @@ task:
       description: "Red cube is within target zone (xy-plane)"
       params:
         object_id: red_cube
-        zone_center: [0.82, 0.0, 0.345]
-        zone_radius: 0.15
+        zone_center: [0.6, 0.0, 0.245]
+        zone_radius: 0.10
         use_3d: false
 
     - type: object_above_height
       description: "Red cube is on or above the table surface"
       params:
         object_id: red_cube
-        min_height: 0.30
+        min_height: 0.20
 
   metadata:
     difficulty: easy

@@ -1,17 +1,19 @@
 # Scenario 001 — Basic Workspace
 # Deterministic initial configuration for the Forge tabletop environment.
-# All positions are in meters, relative to the world frame.
+# Uses the MuJoCo Menagerie Franka Emika Panda model.
+# Robot sits at world origin; table at z=0.2 so the robot reaches over it.
 
 scenario:
   name: basic_workspace
-  description: "Robot with two cubes and a target bin on a tabletop"
+  description: "Panda robot with two cubes and a target bin on a tabletop"
 
 robot:
   model: panda
-  model_path: "simulation/models/panda.xml"
-  base_position: [0.0, 0.0, 0.32]
-  # Home joint configuration (radians) — neutral upright pose
-  home_qpos: [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.04, 0.04]
+  model_source: menagerie  # use MuJoCo Menagerie model
+  base_position: [0.0, 0.0, 0.0]
+  # Home configuration matching Menagerie keyframe
+  home_qpos: [0.0, 0.0, 0.0, -1.57079, 0.0, 1.57079, -0.7853, 0.04, 0.04]
+  home_ctrl: [0.0, 0.0, 0.0, -1.57079, 0.0, 1.57079, -0.7853, 0]
 
 simulation:
   timestep: 0.002
@@ -20,30 +22,29 @@ simulation:
 objects:
   red_cube:
     type: box
-    size: [0.025, 0.025, 0.025]
-    position: [0.72, 0.18, 0.345]
-    orientation: [1.0, 0.0, 0.0, 0.0]  # quaternion (w, x, y, z)
+    size: [0.02, 0.02, 0.02]
+    position: [0.5, 0.15, 0.245]
+    orientation: [1.0, 0.0, 0.0, 0.0]
     material: red_mat
     mass: 0.05
 
   blue_cube:
     type: box
-    size: [0.025, 0.025, 0.025]
-    position: [0.72, -0.18, 0.345]
+    size: [0.02, 0.02, 0.02]
+    position: [0.5, -0.15, 0.245]
     orientation: [1.0, 0.0, 0.0, 0.0]
     material: blue_mat
     mass: 0.05
 
   target_bin:
     type: box
-    size: [0.08, 0.08, 0.005]
-    position: [0.82, 0.0, 0.325]
+    size: [0.06, 0.06, 0.005]
+    position: [0.6, 0.0, 0.225]
     orientation: [1.0, 0.0, 0.0, 0.0]
     material: green_mat
     mass: 0.5
-    static: true  # fixed to table
+    static: true
 
 controller:
-  type: position
-  kp: 100.0
-  kv: 20.0
+  type: general_affine
+  # Menagerie Panda uses general actuators with affine bias

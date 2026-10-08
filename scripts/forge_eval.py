@@ -83,6 +83,8 @@ def main():
     parser.add_argument("--target-object", type=str, default=None,
                         help="Override target object for policy")
     parser.add_argument("--save", action="store_true", help="Save results to runs/")
+    parser.add_argument("--record", action="store_true",
+                        help="Record trajectories to runs/run_XXXXX/")
     parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args()
@@ -105,7 +107,8 @@ def main():
     results = []
 
     if args.task:
-        result = run_task_by_name(args.task, policy, verbose=args.verbose)
+        result = run_task_by_name(args.task, policy, verbose=args.verbose,
+                                   record=args.record)
         results.append(result)
         print()
         print(result.summary())
@@ -113,10 +116,10 @@ def main():
     elif args.suite:
         task_names = load_suite(args.suite)
         print(f"\nRunning suite '{args.suite}' ({len(task_names)} tasks)...\n")
-        results = run_suite(task_names, policy, verbose=args.verbose)
+        results = run_suite(task_names, policy, verbose=args.verbose,
+                            record=args.record)
         print(format_suite_summary(results))
 
-        # Also print individual details
         for r in results:
             print(r.summary())
             print()
@@ -124,7 +127,8 @@ def main():
     elif args.all:
         task_names = list_tasks()
         print(f"\nRunning all {len(task_names)} tasks...\n")
-        results = run_suite(task_names, policy, verbose=args.verbose)
+        results = run_suite(task_names, policy, verbose=args.verbose,
+                            record=args.record)
         print(format_suite_summary(results))
 
     # Save results if requested

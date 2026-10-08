@@ -132,8 +132,8 @@ class TestObjectStateExists:
         obj = sim.get_object_state("red_cube")
         assert obj is not None
         # Should be near [0.45, 0.15, 0.345] — allow tolerance for physics settling
-        assert abs(obj.position[0] - 0.72) < 0.1
-        assert abs(obj.position[1] - 0.18) < 0.1
+        assert abs(obj.position[0] - 0.5) < 0.1
+        assert abs(obj.position[1] - 0.15) < 0.1
 
 
 class TestCommandChangesState:

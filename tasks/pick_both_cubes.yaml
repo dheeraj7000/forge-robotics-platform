@@ -1,5 +1,4 @@
 # Task: Place both cubes into the target zone
-# More challenging — requires sequencing two pick-and-place operations.
 
 task:
   name: pick_both_cubes
@@ -13,16 +12,16 @@ task:
       description: "Red cube is within target zone"
       params:
         object_id: red_cube
-        zone_center: [0.82, 0.0, 0.345]
-        zone_radius: 0.15
+        zone_center: [0.6, 0.0, 0.245]
+        zone_radius: 0.10
         use_3d: false
 
     - type: object_in_zone
       description: "Blue cube is within target zone"
       params:
         object_id: blue_cube
-        zone_center: [0.82, 0.0, 0.345]
-        zone_radius: 0.15
+        zone_center: [0.6, 0.0, 0.245]
+        zone_radius: 0.10
         use_3d: false
 
   metadata:

@@ -8,21 +8,16 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
 
 import numpy as np
 
-from forge_core.simulation import ForgeSimulation, RobotState, ObjectState
+from forge_core.simulation import ForgeSimulation
 
 logger = logging.getLogger(__name__)
 
 
 class Policy(ABC):
-    """Base interface for robot control policies.
-
-    A policy is called each control cycle to produce joint targets.
-    It receives the simulation handle for state queries.
-    """
+    """Base interface for robot control policies."""
 
     @abstractmethod
     def reset(self, sim: ForgeSimulation) -> None:
@@ -33,7 +28,7 @@ class Policy(ABC):
         """Compute joint targets from current state.
 
         Returns:
-            Joint position targets (7 for arm, or 9 for arm+fingers).
+            Joint position targets (7 arm + finger control).
         """
 
     @property
@@ -47,21 +42,24 @@ class Policy(ABC):
 
 
 class ScriptedPickAndPlace(Policy):
-    """Deterministic scripted policy that moves a cube to the target zone.
+    """Deterministic scripted pick-and-place policy.
 
-    Strategy: push the target object toward the target bin using the
-    robot's end-effector. The robot lowers to table height behind the
-    object and sweeps forward through it.
+    Executes a waypoint sequence using the Menagerie Panda model:
+    1. Move above target object
+    2. Lower to grasp height
+    3. Close gripper
+    4. Lift object
+    5. Move above target zone
+    6. Lower to place height
+    7. Open gripper
+    8. Retract home
 
-    This is a joint-space waypoint policy with configurations tuned for
-    the basic_workspace scenario. In a real system, IK would compute
-    these. For Phase 2, they are hand-tuned.
-
-    The waypoints are calibrated against the simplified Panda MJCF model
-    and the basic_workspace object layout.
+    Joint targets are 8-element: 7 arm joints + 1 finger actuator (0-255).
+    The Menagerie Panda's general actuators accept desired joint positions
+    as ctrl values. Finger actuator: 0=open (0.04m gap), 255=closed.
     """
 
-    def __init__(self, target_object: str = "red_cube"):
+    def __init__(self, target_object: str = "red_cube", **kwargs):
         self._target_object = target_object
         self._waypoints: list[tuple[np.ndarray, int]] = []
         self._current_wp: int = 0
@@ -69,7 +67,7 @@ class ScriptedPickAndPlace(Policy):
         self._is_done: bool = False
 
     def reset(self, sim: ForgeSimulation) -> None:
-        """Build waypoint sequence based on current scenario."""
+        """Build waypoint sequence based on scenario."""
         self._current_wp = 0
         self._steps_at_wp = 0
         self._is_done = False
@@ -80,37 +78,46 @@ class ScriptedPickAndPlace(Policy):
             self._is_done = True
             return
 
-        open_grip = [0.04, 0.04]
-
-        # Determine side: if object y > 0, approach from positive y side
         obj_y = obj.position[1]
-        j1_start = 0.30 if obj_y >= 0 else -0.30
+        # j1 rotates toward the object's y side
+        j1_obj = 0.3 if obj_y >= 0 else -0.3
+        # j1 for target zone (y~0)
+        j1_tgt = 0.0
 
-        # Waypoint sequence: (9-element joint+finger targets, hold_steps)
-        # Strategy: lower arm near cube, sweep j1 through 0 to push cube toward target
-        # Each hold step = one policy call = 10 sim steps = 0.02s sim time
+        OPEN = 0      # finger actuator open
+        CLOSED = 255   # finger actuator closed
+
+        # Waypoint: (8-element ctrl targets, hold_steps)
+        # hold_steps × 10 sim_steps × 0.002s = sim time per waypoint
         self._waypoints = [
-            # 1. Transit: safe height, rotated toward object
-            (np.array([j1_start, 0.0, 0.0, -1.8, 0.0, 1.8, 0.785] + open_grip), 150),
-            # 2. Lower to cube height while extending
-            (np.array([j1_start, 1.0, 0.0, -0.4, 0.0, 1.0, 0.785] + open_grip), 300),
-            # 3. Sweep j1 through center to push cube toward y=0
-            (np.array([0.0, 1.1, 0.0, -0.3, 0.0, 0.95, 0.785] + open_grip), 300),
-            # 4. Continue sweep past center + extend more
-            (np.array([-j1_start * 0.3, 1.15, 0.0, -0.25, 0.0, 0.9, 0.785] + open_grip), 250),
-            # 5. Retract to home
-            (np.array([0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785] + open_grip), 200),
+            # 1. Above object — safe height
+            (np.array([j1_obj, 0.3, 0.0, -2.5, 0.0, 2.0, 0.785, OPEN]), 200),
+            # 2. Lower to grasp height — EE near z=0.26
+            (np.array([j1_obj, 1.2, 0.0, -2.0, 0.0, 1.2, 0.785, OPEN]), 200),
+            # 3. Close gripper
+            (np.array([j1_obj, 1.2, 0.0, -2.0, 0.0, 1.2, 0.785, CLOSED]), 150),
+            # 4. Lift
+            (np.array([j1_obj, 0.3, 0.0, -2.5, 0.0, 2.0, 0.785, CLOSED]), 200),
+            # 5. Move above target zone
+            (np.array([j1_tgt, 0.3, 0.0, -2.5, 0.0, 2.0, 0.785, CLOSED]), 200),
+            # 6. Lower to place
+            (np.array([j1_tgt, 1.2, 0.0, -2.0, 0.0, 1.2, 0.785, CLOSED]), 200),
+            # 7. Release
+            (np.array([j1_tgt, 1.2, 0.0, -2.0, 0.0, 1.2, 0.785, OPEN]), 150),
+            # 8. Retract home
+            (np.array([0.0, 0.0, 0.0, -1.57079, 0.0, 1.57079, -0.7853, OPEN]), 200),
         ]
 
-        logger.info("policy_reset: ScriptedPickAndPlace for '%s' with %d waypoints",
-                     self._target_object, len(self._waypoints))
+        logger.info(
+            "policy_reset: ScriptedPickAndPlace for '%s' with %d waypoints",
+            self._target_object, len(self._waypoints),
+        )
 
     def act(self, sim: ForgeSimulation) -> np.ndarray:
-        """Return the current waypoint's joint targets."""
+        """Return current waypoint targets."""
         if self._is_done or self._current_wp >= len(self._waypoints):
             self._is_done = True
-            home = np.array(sim._scenario["robot"]["home_qpos"])
-            return home
+            return np.array([0, 0, 0, -1.57079, 0, 1.57079, -0.7853, 0])
 
         targets, hold = self._waypoints[self._current_wp]
         self._steps_at_wp += 1
@@ -131,7 +138,7 @@ class ScriptedPickAndPlace(Policy):
 
 
 class NullPolicy(Policy):
-    """Policy that does nothing — useful for testing evaluation without movement."""
+    """Policy that does nothing — useful for testing evaluation."""
 
     def __init__(self, **kwargs):
         self._is_done = False
@@ -146,15 +153,13 @@ class NullPolicy(Policy):
         self._steps += 1
         if self._steps >= self._max_steps:
             self._is_done = True
-        home = np.array(sim._scenario["robot"]["home_qpos"])
-        return home
+        return np.array([0, 0, 0, -1.57079, 0, 1.57079, -0.7853, 0])
 
     @property
     def done(self) -> bool:
         return self._is_done
 
 
-# Registry of available policies
 POLICY_REGISTRY: dict[str, type[Policy]] = {
     "scripted_pick_and_place": ScriptedPickAndPlace,
     "null": NullPolicy,
