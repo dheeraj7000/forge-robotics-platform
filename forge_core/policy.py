@@ -168,8 +168,13 @@ POLICY_REGISTRY: dict[str, type[Policy]] = {
 
 def create_policy(name: str, **kwargs) -> Policy:
     """Create a policy by registered name."""
+    # Lazy import learned policy to avoid PyTorch dependency when not needed
+    if name == "learned":
+        from forge_core.learned_policy import LearnedPolicy
+        return LearnedPolicy(**kwargs)
+
     cls = POLICY_REGISTRY.get(name)
     if cls is None:
-        available = ", ".join(POLICY_REGISTRY.keys())
+        available = ", ".join(list(POLICY_REGISTRY.keys()) + ["learned"])
         raise ValueError(f"Unknown policy '{name}'. Available: {available}")
     return cls(**kwargs)

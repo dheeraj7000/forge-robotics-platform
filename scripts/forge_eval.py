@@ -82,6 +82,8 @@ def main():
                         help="Policy to use (default: scripted_pick_and_place)")
     parser.add_argument("--target-object", type=str, default=None,
                         help="Override target object for policy")
+    parser.add_argument("--model-path", type=str, default=None,
+                        help="Path to trained model (for --policy learned)")
     parser.add_argument("--save", action="store_true", help="Save results to runs/")
     parser.add_argument("--record", action="store_true",
                         help="Record trajectories to runs/run_XXXXX/")
@@ -104,6 +106,8 @@ def main():
     policy_kwargs = {}
     if args.target_object:
         policy_kwargs["target_object"] = args.target_object
+    if args.model_path:
+        policy_kwargs["model_path"] = args.model_path
     policy = create_policy(args.policy, **policy_kwargs)
 
     # Create fault injector if requested
