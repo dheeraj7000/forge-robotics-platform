@@ -231,6 +231,9 @@ class ForgeSimulation:
 
     <!-- Scene objects -->
 {objects_xml}
+
+    <!-- Perception cameras (used via MuJoCo Renderer) -->
+    <!-- The default scene camera is controlled programmatically -->
   </worldbody>
 </mujoco>"""
         return scene_xml
