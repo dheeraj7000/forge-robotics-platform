@@ -168,7 +168,7 @@ python3 scripts/forge_perception.py --scenario basic_workspace --detect \
 ## Running Tests
 
 ```bash
-# All tests (88 tests, no ROS needed)
+# All tests (117 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module
