@@ -43,7 +43,7 @@ source /opt/ros/jazzy/setup.bash
 
 ```bash
 cd /root/forge
-pip install mujoco mujoco_menagerie numpy PyYAML
+pip install mujoco mujoco_menagerie numpy PyYAML opencv-python-headless
 pip install pytest  # for testing
 ```
 
@@ -146,6 +146,23 @@ python3 scripts/forge_replay.py runs/run_00001/ --step 50
 
 # Inspect state at time 5.0s
 python3 scripts/forge_replay.py runs/run_00001/ --time 5.0
+```
+
+## Perception
+
+```bash
+# Render a camera frame from the simulation
+python3 scripts/forge_perception.py --scenario basic_workspace --render -o frame.png
+
+# Detect colored objects
+python3 scripts/forge_perception.py --scenario basic_workspace --detect
+
+# Detect and annotate the image
+python3 scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o detections.png
+
+# Custom camera parameters
+python3 scripts/forge_perception.py --scenario basic_workspace --detect \
+  --azimuth 135 --elevation -25 --distance 1.8
 ```
 
 ## Running Tests

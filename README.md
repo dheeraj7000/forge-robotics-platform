@@ -7,10 +7,10 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 4 — Failure Injection
+## Current Status: Phase 5 — Perception (Camera + OpenCV)
 
-Phases 1–4 are complete: simulation foundation, task evaluation,
-telemetry/replay, and chaos testing.
+Phases 1–5 are complete: simulation foundation, task evaluation,
+telemetry/replay, chaos testing, and camera-based perception.
 
 ### What's included
 
@@ -22,7 +22,8 @@ telemetry/replay, and chaos testing.
 - **Telemetry** — per-cycle trajectory recording (joint state, EE pose, objects, actions)
 - **Replay** — load and inspect any recorded run at any timestep
 - **Chaos testing** — 6 fault types, composable YAML profiles, compare mode
-- **88 automated tests**, all passing
+- **Perception** — MuJoCo offscreen camera rendering, OpenCV HSV color detection, depth-based 3D position estimation
+- **117 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
@@ -40,13 +41,13 @@ Those belong to later phases.
 ### Install
 
 ```bash
-pip install mujoco mujoco_menagerie numpy PyYAML pytest
+pip install mujoco mujoco_menagerie numpy PyYAML opencv-python-headless pytest
 ```
 
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 88 tests, no ROS needed
+python3 -m pytest tests/ -v     # 117 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -74,6 +75,14 @@ python3 scripts/forge_chaos.py --task pick_red_cube --fault cascading --compare
 python3 scripts/forge_chaos.py --task pick_red_cube --inject controller_dropout --at 3 --duration 2
 ```
 
+
+### Perception
+
+```bash
+python3 scripts/forge_perception.py --scenario basic_workspace --render -o frame.png
+python3 scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o detections.png
+```
+
 ### ROS 2 (optional)
 
 ```bash
@@ -96,6 +105,7 @@ forge/
 │   ├── faults.py            # Fault injection system
 │   ├── recorder.py          # Trajectory recording
 │   ├── replay.py            # Run replay and inspection
+│   ├── perception.py        # Camera rendering + object detection
 │   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
@@ -127,7 +137,8 @@ forge/
 │   ├── forge_doctor.py      # Health check
 │   ├── forge_eval.py        # Task evaluation CLI
 │   ├── forge_chaos.py       # Chaos testing CLI
-│   └── forge_replay.py      # Run replay CLI
+│   ├── forge_replay.py      # Run replay CLI
+│   └── forge_perception.py   # Perception CLI
 ├── config/
 │   └── default.yaml
 └── docs/
@@ -154,7 +165,7 @@ forge/
 | 2 | Done | Task execution & evaluation |
 | 3 | Done | Telemetry & replay |
 | 4 | Done | Failure injection / chaos testing |
-| 5 | — | Perception (camera + OpenCV) |
+| 5 | Done | Perception (camera + OpenCV) |
 | 6 | — | Learned policy (PyTorch) |
 | 7 | — | ML infrastructure (experiment tracking, model registry) |
 | 8 | — | CI/CD (regression evaluation) |

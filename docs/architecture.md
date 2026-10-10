@@ -6,8 +6,9 @@ Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
 It supports a lifecycle of develop → simulate → evaluate → record →
 detect failures → replay → improve.
 
-The current implementation covers Phases 1–4:
-simulation, task evaluation, telemetry/replay, and failure injection.
+The current implementation covers Phases 1–5:
+simulation, task evaluation, telemetry/replay, failure injection,
+and camera-based perception.
 
 ## System Diagram
 
@@ -229,6 +230,46 @@ The `--compare` flag runs baseline (no faults) and faulted side by side.
 
 ---
 
+## Phase 5 — Perception (Camera + OpenCV)
+
+### Camera Rendering
+
+The `PerceptionPipeline` uses `mujoco.Renderer` for offscreen rendering.
+Cameras are positioned programmatically via azimuth/elevation/distance/lookat.
+Produces 640×480 RGB images and depth buffers without a display server.
+
+### Perception Module — `forge_core/perception.py`
+
+| Class | Purpose |
+|-------|---------|
+| `PerceptionPipeline` | Rendering + detection + 3D estimation |
+| `ColorDetector` | HSV-based color detection via OpenCV |
+| `Detection` | Single detected object with position |
+| `PerceptionResult` | Full frame result with lookup methods |
+| `PerceptionPolicy` | Wrapper adding perception to any policy |
+
+### Detection Pipeline
+
+1. Render RGB + depth via MuJoCo offscreen renderer
+2. Convert RGB → HSV, apply color masks for red/blue
+3. Find contours, compute centroids and areas
+4. Unproject pixel + depth → 3D world position
+5. Return structured PerceptionResult
+
+### Integration
+
+- Runner: `perception=True` wraps the policy in `PerceptionPolicy`
+- Recorder: saves frames alongside trajectories when perception is active
+- Policy: `PerceptionPolicy` wrapper provides image observations
+
+### CLI — `scripts/forge_perception.py`
+
+```
+forge_perception.py --scenario basic_workspace --render -o frame.png
+forge_perception.py --scenario basic_workspace --detect --annotate -o detections.png
+```
+
+---
 ## Design Principles
 
 1. **forge_core has no ROS dependency** — everything can be tested with pytest alone

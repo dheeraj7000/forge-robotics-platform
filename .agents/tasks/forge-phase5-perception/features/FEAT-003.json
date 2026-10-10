@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-003",
+  "type": "docs",
+  "description": "Documentation updates: docs/architecture.md Phase 5 section, docs/setup.md opencv dep + perception CLI, README.md status/structure/features/roadmap/test count updates. Independent of FEAT-002 but ordered after it so the final test count is known.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Update docs/architecture.md \u2014 add a new '## Phase 5 \u2014 Perception (Camera + OpenCV)' section after the Phase 4 section (before '## Design Principles'). Content per the design doc \u00a72.12: Camera Rendering subsection (PerceptionPipeline uses mujoco.Renderer, programmatic camera via azimuth/elevation/distance/lookat, 640x480 RGB + depth, headless), Perception Module table (PerceptionPipeline, ColorDetector, Detection, PerceptionResult, PerceptionPolicy), Detection Pipeline numbered steps (render RGB+depth, RGB->HSV, color masks, contours, unproject, return PerceptionResult), Integration subsection (Runner perception=True, Recorder frames, PerceptionPolicy wrapper), CLI subsection (forge_perception.py examples). Also update the overview sentence and 'current implementation covers' line to mention Phase 5.",
+    "Step 2: Update docs/setup.md \u2014 in Step 2 'Install Python Dependencies', add 'opencv-python-headless' to the pip install command. Add a new '## Perception' section after the existing 'Replay Recorded Runs' section with usage examples for forge_perception.py (--render, --detect, --detect --annotate, custom camera params).",
+    "Step 3: Update README.md:\n  (a) Change status line from 'Phase 4 \u2014 Failure Injection' to 'Phase 5 \u2014 Perception (Camera + OpenCV)'.\n  (b) Update the description paragraph: 'Phases 1\u20135 are complete: simulation foundation, task evaluation, telemetry/replay, chaos testing, and camera-based perception.'\n  (c) Add to 'What's included' bullets: '- **Perception** \u2014 MuJoCo offscreen camera rendering, OpenCV HSV color detection, depth-based 3D position estimation'\n  (d) In Project Structure, add 'perception.py' line under forge_core/ and 'forge_perception.py' line under scripts/.\n  (e) In Quick Start Install, add 'opencv-python-headless' to the pip install line.\n  (f) Add a 'Perception' subsection in Quick Start after Chaos testing with example commands.\n  (g) Update Verify section: change '88 tests' to the actual final count (run pytest --co -q to get it).\n  (h) In Phase Roadmap table, change Phase 5 status from '\u2014' to 'Done'.\n  (i) Update the Running Tests section test count comment if present.",
+    "Step 4: Run python3 -m pytest tests/ --co -q to get the final test count and make sure the count in README.md matches."
+  ],
+  "acceptance_criteria": [
+    "docs/architecture.md contains a Phase 5 section with PerceptionPipeline, ColorDetector, Detection, PerceptionResult, PerceptionPolicy",
+    "docs/setup.md mentions opencv-python-headless in install commands and has perception CLI examples",
+    "README.md status line says Phase 5",
+    "README.md phase roadmap shows Phase 5 as Done",
+    "README.md project structure lists perception.py and forge_perception.py",
+    "README.md test count matches actual passing test count",
+    "All tests still pass after doc changes"
+  ],
+  "verification": [
+    "cd /root/forge && python3 -m pytest tests/ -v",
+    "cd /root/forge && grep -c 'Phase 5' docs/architecture.md",
+    "cd /root/forge && grep 'opencv-python-headless' docs/setup.md",
+    "cd /root/forge && grep 'Phase 5' README.md"
+  ],
+  "blocked_reason": null,
+  "findings": "All 3 doc files updated. 117 tests pass. Phase 5 section added to architecture.md, opencv-python-headless added to setup.md, README.md updated with Phase 5 status/structure/features/roadmap/test count."
+}
