@@ -1,7 +1,8 @@
 """Task runner for Forge.
 
 Orchestrates: load scenario → reset → run policy → evaluate → report.
-Supports trajectory recording (Phase 3) and fault injection (Phase 4).
+Supports trajectory recording (Phase 3), fault injection (Phase 4),
+and optional perception wrapping (Phase 5).
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ def run_task(
     verbose: bool = False,
     record: bool = False,
     fault_injector: FaultInjector | None = None,
+    perception: bool = False,
 ) -> EvalResult:
     """Execute a task with a policy and return evaluation results.
 
@@ -40,6 +42,7 @@ def run_task(
         verbose: Log progress.
         record: If True, save trajectory to runs/ directory.
         fault_injector: Optional fault injector for chaos testing.
+        perception: If True, wrap policy in PerceptionPolicy.
 
     Returns:
         EvalResult with success/failure and metrics.
@@ -60,87 +63,105 @@ def run_task(
     max_sim_time = task.time_limit
     timed_out = False
 
-    while not policy.done:
-        if sim.sim_time >= max_sim_time:
-            timed_out = True
-            logger.info("task_timed_out: %s at %.3fs", task.name, sim.sim_time)
-            break
+    # Wrap policy in PerceptionPolicy if requested
+    perception_active = False
+    if perception:
+        from forge_core.perception import PerceptionPolicy
+        policy = PerceptionPolicy(policy, sim)
+        perception_active = True
 
-        targets = policy.act(sim)
+    try:
+        while not policy.done:
+            if sim.sim_time >= max_sim_time:
+                timed_out = True
+                logger.info("task_timed_out: %s at %.3fs", task.name, sim.sim_time)
+                break
 
-        # Fault injection: filter targets before applying
-        if fault_injector:
-            targets = fault_injector.pre_step(sim, targets)
+            targets = policy.act(sim)
 
-        sim.set_joint_targets(targets)
-        sim.step(STEPS_PER_CYCLE)
-        steps += STEPS_PER_CYCLE
+            # Fault injection: filter targets before applying
+            if fault_injector:
+                targets = fault_injector.pre_step(sim, targets)
 
-        if fault_injector:
-            fault_injector.post_step(sim)
+            sim.set_joint_targets(targets)
+            sim.step(STEPS_PER_CYCLE)
+            steps += STEPS_PER_CYCLE
 
-        # Record state
-        if trajectory is not None:
-            robot = sim.get_robot_state()
-            obj_states = {
-                o.id: (o.position, o.orientation)
-                for o in sim.get_object_states()
-            }
-            trajectory.record_step(
-                timestamp=sim.sim_time,
-                joint_pos=robot.joint_positions,
-                joint_vel=robot.joint_velocities,
-                ee_pos=robot.ee_position,
-                ee_quat=robot.ee_orientation,
-                action=targets,
-                object_states=obj_states,
-            )
+            if fault_injector:
+                fault_injector.post_step(sim)
 
-        if verbose and steps % 1000 == 0:
-            logger.info("  step %d, sim_time=%.3f", steps, sim.sim_time)
+            # Record state
+            if trajectory is not None:
+                robot = sim.get_robot_state()
+                obj_states = {
+                    o.id: (o.position, o.orientation)
+                    for o in sim.get_object_states()
+                }
+                trajectory.record_step(
+                    timestamp=sim.sim_time,
+                    joint_pos=robot.joint_positions,
+                    joint_vel=robot.joint_velocities,
+                    ee_pos=robot.ee_position,
+                    ee_quat=robot.ee_orientation,
+                    action=targets,
+                    object_states=obj_states,
+                )
 
-    # Settle
-    sim.step(200)
-    steps += 200
+            # Record perception frame inside while loop after record_step
+            if trajectory is not None and perception_active:
+                perc = policy.last_perception
+                if perc is not None:
+                    trajectory.frames.append(perc.image)
 
-    wall_end = time.monotonic()
+            if verbose and steps % 1000 == 0:
+                logger.info("  step %d, sim_time=%.3f", steps, sim.sim_time)
 
-    # Evaluate
-    evaluator = Evaluator(sim, task)
-    result = evaluator.evaluate()
-    result.wall_time = wall_end - wall_start
-    result.steps = steps
-    result.timed_out = timed_out
+        # Settle
+        sim.step(200)
+        steps += 200
 
-    # Add fault info to metrics
-    if fault_injector and fault_injector.faults:
-        result.metrics["faults"] = fault_injector.fault_names
+        wall_end = time.monotonic()
 
-    # Save recorded run
-    if trajectory is not None:
-        run_id = get_next_run_id()
-        metadata = {
-            "task_name": task.name,
-            "scenario": task.scenario,
-            "policy": policy.name,
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "success": result.success,
-            "sim_time": result.sim_time,
-            "wall_time": result.wall_time,
-            "steps": steps,
-            "timed_out": timed_out,
-        }
+        # Evaluate
+        evaluator = Evaluator(sim, task)
+        result = evaluator.evaluate()
+        result.wall_time = wall_end - wall_start
+        result.steps = steps
+        result.timed_out = timed_out
+
+        # Add fault info to metrics
         if fault_injector and fault_injector.faults:
-            metadata["faults"] = fault_injector.fault_names
-        run_dir = save_run(
-            run_id=run_id,
-            trajectory=trajectory,
-            metadata=metadata,
-            scenario_config=sim._scenario,
-            result=result.to_dict(),
-        )
-        result.metrics["run_id"] = run_id
-        result.metrics["run_dir"] = str(run_dir)
+            result.metrics["faults"] = fault_injector.fault_names
+
+        # Save recorded run
+        if trajectory is not None:
+            run_id = get_next_run_id()
+            metadata = {
+                "task_name": task.name,
+                "scenario": task.scenario,
+                "policy": policy.name,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "success": result.success,
+                "sim_time": result.sim_time,
+                "wall_time": result.wall_time,
+                "steps": steps,
+                "timed_out": timed_out,
+            }
+            if fault_injector and fault_injector.faults:
+                metadata["faults"] = fault_injector.fault_names
+            run_dir = save_run(
+                run_id=run_id,
+                trajectory=trajectory,
+                metadata=metadata,
+                scenario_config=sim._scenario,
+                result=result.to_dict(),
+            )
+            result.metrics["run_id"] = run_id
+            result.metrics["run_dir"] = str(run_dir)
+    finally:
+        # Clean up perception resources if active
+        if perception_active:
+            policy.close()
 
     logger.info(
         "task_run_completed: %s -> %s (sim=%.3fs, wall=%.3fs)",
@@ -158,11 +179,12 @@ def run_task_by_name(
     verbose: bool = False,
     record: bool = False,
     fault_injector: FaultInjector | None = None,
+    perception: bool = False,
 ) -> EvalResult:
     """Load a task by name and run it."""
     task = load_task(task_name)
     return run_task(task, policy, verbose=verbose, record=record,
-                    fault_injector=fault_injector)
+                    fault_injector=fault_injector, perception=perception)
 
 
 def run_suite(
@@ -171,13 +193,15 @@ def run_suite(
     verbose: bool = False,
     record: bool = False,
     fault_injector: FaultInjector | None = None,
+    perception: bool = False,
 ) -> list[EvalResult]:
     """Run multiple tasks with the same policy."""
     results = []
     for i, name in enumerate(task_names, 1):
         logger.info("suite_progress: %d/%d — %s", i, len(task_names), name)
         result = run_task_by_name(name, policy, verbose=verbose, record=record,
-                                   fault_injector=fault_injector)
+                                   fault_injector=fault_injector,
+                                   perception=perception)
         results.append(result)
     return results
 

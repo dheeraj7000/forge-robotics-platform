@@ -41,6 +41,7 @@ class TrajectoryBuffer:
     actions: list[np.ndarray] = field(default_factory=list)
     object_positions: list[dict[str, np.ndarray]] = field(default_factory=list)
     object_orientations: list[dict[str, np.ndarray]] = field(default_factory=list)
+    frames: list[np.ndarray] = field(default_factory=list)
 
     @property
     def length(self) -> int:
@@ -144,6 +145,11 @@ def save_run(
     # Trajectory
     npz_data = trajectory.to_npz_dict()
     np.savez_compressed(run_dir / "trajectory.npz", **npz_data)
+
+    # Perception frames (optional)
+    if trajectory.frames:
+        frames_array = np.stack(trajectory.frames)
+        np.savez_compressed(run_dir / "frames.npz", frames=frames_array)
 
     # Config snapshot
     (run_dir / "config.yaml").write_text(yaml.dump(scenario_config, default_flow_style=False))
