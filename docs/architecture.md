@@ -6,9 +6,9 @@ Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
 It supports a lifecycle of develop → simulate → evaluate → record →
 detect failures → replay → improve.
 
-The current implementation covers Phases 1–5:
+The current implementation covers Phases 1–6:
 simulation, task evaluation, telemetry/replay, failure injection,
-and camera-based perception.
+camera-based perception, and learned policy via behavioral cloning.
 
 ## System Diagram
 
@@ -267,6 +267,117 @@ Produces 640×480 RGB images and depth buffers without a display server.
 ```
 forge_perception.py --scenario basic_workspace --render -o frame.png
 forge_perception.py --scenario basic_workspace --detect --annotate -o detections.png
+```
+
+---
+
+## Phase 6 — Learned Policy (PyTorch)
+
+### Module Overview
+
+`forge_core/learned_policy.py` provides behavioral cloning (BC) training
+and a `LearnedPolicy` class that implements the Policy ABC. A trained
+neural network replaces the scripted waypoint sequence — same interface,
+learned behavior.
+
+### Network Architecture
+
+The default policy network is an MLP:
+
+```
+Input (31-dim state)
+  → Linear(31, 256) → Tanh
+  → Linear(256, 256) → Tanh
+  → Linear(256, 128) → Tanh
+  → Linear(128, 8)
+Output (8-dim action: 7 joint targets + 1 gripper)
+```
+
+Hidden layer sizes are configurable via `config/training.yaml` or
+CLI arguments.
+
+### Observation Space (31-dim)
+
+| Indices | Content |
+|---------|---------|
+| 0–8 | Joint positions (9) |
+| 9–17 | Joint velocities (9) |
+| 18–20 | End-effector position (xyz) |
+| 21–24 | End-effector orientation (quaternion wxyz) |
+| 25–27 | Target object position (xyz) |
+| 28–30 | Goal position — target bin (xyz) |
+
+### Training Pipeline
+
+1. **Collect demonstrations** — `collect_demos` runs a scripted policy
+   and records state-action pairs, or use `DemoDataset.from_run_dir` /
+   `DemoDataset.from_run_dirs` to load from previously recorded runs.
+2. **Train** — `train_bc` optimizes the MLP via MSE loss on the
+   demonstration actions. Supports validation split, epoch checkpointing,
+   and training history tracking.
+3. **Save** — the trained `state_dict` is saved as a `.pt` file in
+   `models/` (e.g. `models/bc_policy.pt`).
+
+### YAML Configuration
+
+`config/training.yaml` controls training, model, and data parameters:
+
+```yaml
+training:
+  epochs: 100
+  batch_size: 64
+  learning_rate: 0.001
+  validation_split: 0.1
+  checkpoint_interval: 20
+
+model:
+  hidden_layers: [256, 256, 128]
+  obs_dim: 31
+  act_dim: 8
+
+data:
+  target_object: "red_cube"
+  demo_episodes: 3
+  demo_policy: "scripted_pick_and_place"
+```
+
+Config is loaded and validated by `load_training_config`. CLI arguments
+override YAML values, which override code defaults.
+
+### Integration
+
+- **Runner / Eval CLI**: `create_policy('learned', model_path=...)` returns
+  a `LearnedPolicy` instance — drop-in replacement for scripted policies.
+- **Perception**: `PerceptionPolicy` wraps the learned policy when
+  `perception=True` is set, adding camera observations.
+- **Recorder**: training demonstrations can be collected from any recorded
+  run via `DemoDataset.from_run_dir`.
+
+### Extension Point
+
+The `obs_mode` parameter controls how observations are built:
+- `'state'` — flat 31-dim MLP input (Phase 6, current)
+- `'vision'` — reserved for a future CNN-based policy
+
+Passing `obs_mode='vision'` raises `NotImplementedError` today.
+
+### CLI — `scripts/forge_train.py`
+
+```
+# Collect demos and train
+forge_train.py --task pick_red_cube --episodes 5
+
+# Train from recorded runs
+forge_train.py --from-run runs/run_00001/ runs/run_00002/
+
+# Train with a YAML config
+forge_train.py --config config/training.yaml --task pick_red_cube --episodes 1
+
+# List saved models
+forge_train.py --list-models
+
+# Evaluate the trained policy
+forge_eval.py --task pick_red_cube --policy learned --model-path models/bc_policy.pt
 ```
 
 ---

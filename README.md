@@ -7,10 +7,11 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 5 — Perception (Camera + OpenCV)
+## Current Status: Phase 6 — Learned Policy (PyTorch)
 
-Phases 1–5 are complete: simulation foundation, task evaluation,
-telemetry/replay, chaos testing, and camera-based perception.
+Phases 1–6 are complete: simulation foundation, task evaluation,
+telemetry/replay, chaos testing, camera-based perception, and learned
+policy via behavioral cloning.
 
 ### What's included
 
@@ -23,11 +24,12 @@ telemetry/replay, chaos testing, and camera-based perception.
 - **Replay** — load and inspect any recorded run at any timestep
 - **Chaos testing** — 6 fault types, composable YAML profiles, compare mode
 - **Perception** — MuJoCo offscreen camera rendering, OpenCV HSV color detection, depth-based 3D position estimation
-- **117 automated tests**, all passing
+- **Learned policy** — PyTorch MLP trained via behavioral cloning from scripted demonstrations, configurable training pipeline with YAML config
+- **149 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
-No LLM, VLM, learned policy, cloud infrastructure, or physical robot.
+No LLM, VLM, cloud infrastructure, or physical robot.
 Those belong to later phases.
 
 ## Quick Start
@@ -42,12 +44,13 @@ Those belong to later phases.
 
 ```bash
 pip install mujoco mujoco_menagerie numpy PyYAML opencv-python-headless pytest
+pip install -e '.[ml]'  # PyTorch for learned policies (optional)
 ```
 
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 117 tests, no ROS needed
+python3 -m pytest tests/ -v     # 149 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -83,6 +86,16 @@ python3 scripts/forge_perception.py --scenario basic_workspace --render -o frame
 python3 scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o detections.png
 ```
 
+### Training a Learned Policy
+
+```bash
+python3 scripts/forge_train.py --task pick_red_cube --episodes 5
+python3 scripts/forge_train.py --from-run runs/run_00001/ runs/run_00002/
+python3 scripts/forge_train.py --config config/training.yaml --task pick_red_cube --episodes 1
+python3 scripts/forge_train.py --list-models
+python3 scripts/forge_eval.py --task pick_red_cube --policy learned --model-path models/bc_policy.pt
+```
+
 ### ROS 2 (optional)
 
 ```bash
@@ -106,6 +119,7 @@ forge/
 │   ├── recorder.py          # Trajectory recording
 │   ├── replay.py            # Run replay and inspection
 │   ├── perception.py        # Camera rendering + object detection
+│   ├── learned_policy.py    # PyTorch learned policy + BC training
 │   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
@@ -129,6 +143,7 @@ forge/
 │   ├── gravity_shift.yaml
 │   └── cascading.yaml
 ├── runs/                    # Recorded run outputs
+├── models/                  # Saved model .pt files
 ├── tests/
 │   ├── unit/                # 116 unit tests
 │   └── integration/         # Acceptance tests
@@ -138,9 +153,11 @@ forge/
 │   ├── forge_eval.py        # Task evaluation CLI
 │   ├── forge_chaos.py       # Chaos testing CLI
 │   ├── forge_replay.py      # Run replay CLI
-│   └── forge_perception.py   # Perception CLI
+│   ├── forge_perception.py   # Perception CLI
+│   └── forge_train.py       # Training CLI
 ├── config/
-│   └── default.yaml
+│   ├── default.yaml
+│   └── training.yaml        # ML training configuration
 └── docs/
     ├── architecture.md      # System design (all phases)
     └── setup.md             # Installation and usage guide
@@ -166,7 +183,7 @@ forge/
 | 3 | Done | Telemetry & replay |
 | 4 | Done | Failure injection / chaos testing |
 | 5 | Done | Perception (camera + OpenCV) |
-| 6 | — | Learned policy (PyTorch) |
+| 6 | Done | Learned policy (PyTorch) |
 | 7 | — | ML infrastructure (experiment tracking, model registry) |
 | 8 | — | CI/CD (regression evaluation) |
 | 9 | — | Edge deployment (ONNX, TensorRT) |

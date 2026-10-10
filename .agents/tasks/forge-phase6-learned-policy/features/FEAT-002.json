@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-002",
+  "type": "docs",
+  "description": "Documentation updates: add Phase 6 section to docs/architecture.md, add PyTorch/ML section to docs/setup.md, update README.md status and roadmap. Depends on FEAT-001 being complete so docs accurately reflect the final implementation.",
+  "status": "completed",
+  "steps": [
+    "1. Add a 'Phase 6 — Learned Policy (PyTorch)' section to /root/forge/docs/architecture.md after the Phase 5 section and before the Design Principles section. Content: module overview (forge_core/learned_policy.py provides BC training + LearnedPolicy implementing Policy ABC), network architecture (MLP: 31-dim state -> [256,256,128] Tanh -> 8-dim action, configurable hidden layers), training pipeline (collect_demos or DemoDataset.from_run_dir/from_run_dirs -> train_bc -> state_dict .pt file), YAML config (config/training.yaml with training/model/data sections), integration (create_policy('learned', model_path=...) for runner and eval CLI, PerceptionPolicy wraps learned policy when perception=True), extension point (obs_mode parameter: 'state' for MLP Phase 6, 'vision' for future CNN), CLI (forge_train.py with collect/train/list-models workflows, --config for YAML config, --from-run for multi-run training).",
+
+    "2. Add a 'Machine Learning Dependencies' section to /root/forge/docs/setup.md after the 'Install Python Dependencies' section (Step 2). Content: pip install -e '.[ml]' to install PyTorch, or pip install torch>=2.0 directly. Add a 'Training a Learned Policy' section with CLI usage examples: basic training (forge_train.py --task pick_red_cube --episodes 5), training from recorded runs (forge_train.py --from-run runs/run_00001/ runs/run_00002/), training with YAML config (forge_train.py --config config/training.yaml --task pick_red_cube --episodes 1), list models (forge_train.py --list-models), evaluating (forge_eval.py --task pick_red_cube --policy learned --model-path models/bc_policy.pt). Note: glob patterns in --from-run expanded by shell; on Windows use explicit paths or WSL.",
+
+    "3. Update /root/forge/README.md: (a) Change 'Current Status' heading from 'Phase 5 — Perception (Camera + OpenCV)' to 'Phase 6 — Learned Policy (PyTorch)'. (b) Update the description paragraph to mention Phase 6 (learned policy via behavioral cloning). (c) Add learned_policy.py and forge_train.py to the project structure section (forge_core/ and scripts/ subsections). (d) Add config/training.yaml to the config/ section in the project structure. (e) Update the Phase Roadmap table: Phase 6 row status from '—' to 'Done'. (f) Add a 'Training a Learned Policy' subsection under the existing CLI sections with basic usage examples. (g) Update the 'What's included' list to add a 'Learned policy' bullet. (h) Update the test count reference from 117 to the new count (will be 117 + ~32 new tests)."
+  ],
+  "acceptance_criteria": [
+    "docs/architecture.md contains a Phase 6 section with module overview, network architecture, training pipeline, YAML config, integration, extension point, and CLI descriptions",
+    "docs/setup.md contains ML dependency installation instructions and training CLI usage examples",
+    "README.md shows Phase 6 as 'Done' in the roadmap table",
+    "README.md Current Status heading says Phase 6",
+    "README.md project structure lists learned_policy.py, forge_train.py, and config/training.yaml"
+  ],
+  "verification": [
+    "wsl -e bash -c 'cd /root/forge && grep -q \"Phase 6\" docs/architecture.md && echo OK || echo FAIL'",
+    "wsl -e bash -c 'cd /root/forge && grep -q \"ml\" docs/setup.md && echo OK || echo FAIL'",
+    "wsl -e bash -c 'cd /root/forge && grep -q \"Done.*Learned policy\" README.md && echo OK || echo FAIL'",
+    "wsl -e bash -c 'cd /root/forge && python3 -m pytest tests/ -v'"
+  ],
+  "blocked_reason": null,
+  "findings": "All 3 steps implemented. architecture.md has Phase 6 section with module overview, network architecture, training pipeline, YAML config, integration, extension point, and CLI. setup.md has ML dependency instructions and training CLI examples. README.md updated: Phase 6 status, roadmap Done, project structure includes learned_policy.py/forge_train.py/training.yaml, test count updated to 149. All 149 tests pass."
+}

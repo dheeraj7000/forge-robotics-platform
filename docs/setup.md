@@ -49,6 +49,24 @@ pip install pytest  # for testing
 
 The first run will download the Menagerie Panda model (~3 MB) automatically.
 
+## Step 2b: Machine Learning Dependencies
+
+To use the learned policy and training features (Phase 6), install the
+ML extras:
+
+```bash
+pip install -e '.[ml]'
+```
+
+This adds PyTorch (>= 2.0). Alternatively, install it directly:
+
+```bash
+pip install torch>=2.0
+```
+
+PyTorch is only required for training and running learned policies.
+All other Forge features work without it.
+
 ## Step 3: Verify Installation
 
 ```bash
@@ -165,10 +183,32 @@ python3 scripts/forge_perception.py --scenario basic_workspace --detect \
   --azimuth 135 --elevation -25 --distance 1.8
 ```
 
+## Training a Learned Policy
+
+```bash
+# Collect demonstrations from the scripted policy and train
+python3 scripts/forge_train.py --task pick_red_cube --episodes 5
+
+# Train from previously recorded runs
+python3 scripts/forge_train.py --from-run runs/run_00001/ runs/run_00002/
+
+# Train with a YAML config file
+python3 scripts/forge_train.py --config config/training.yaml --task pick_red_cube --episodes 1
+
+# List saved models
+python3 scripts/forge_train.py --list-models
+
+# Evaluate the trained policy
+python3 scripts/forge_eval.py --task pick_red_cube --policy learned --model-path models/bc_policy.pt
+```
+
+> **Note**: Glob patterns in `--from-run` are expanded by the shell. On
+> Windows, use explicit paths or run inside WSL.
+
 ## Running Tests
 
 ```bash
-# All tests (117 tests, no ROS needed)
+# All tests (149 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module
