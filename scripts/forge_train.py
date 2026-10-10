@@ -157,7 +157,7 @@ def main():
                         help="Path to YAML training config")
     parser.add_argument("--task", type=str, default="pick_red_cube",
                         help="Task to collect demonstrations from")
-    parser.add_argument("--episodes", type=int, default=3,
+    parser.add_argument("--episodes", type=int, default=None,
                         help="Number of demo episodes to collect")
     parser.add_argument("--from-run", type=str, nargs="+", default=None,
                         help="Train from existing recorded run directory(ies)")
@@ -168,7 +168,7 @@ def main():
                         help="Learning rate")
     parser.add_argument("--save-path", type=str, default=None,
                         help="Where to save the trained model")
-    parser.add_argument("--demo-policy", type=str, default="scripted_pick_and_place",
+    parser.add_argument("--demo-policy", type=str, default=None,
                         help="Policy to use for demo collection")
     parser.add_argument("--list-models", action="store_true",
                         help="List saved models and exit")
@@ -189,6 +189,10 @@ def main():
         yaml_flat = _flatten_training_config(raw_config)
 
     cli_overrides: dict[str, Any] = {}
+    if args.episodes is not None:
+        cli_overrides["episodes"] = args.episodes
+    if args.demo_policy is not None:
+        cli_overrides["demo_policy"] = args.demo_policy
     if args.epochs is not None:
         cli_overrides["epochs"] = args.epochs
     if args.batch_size is not None:
