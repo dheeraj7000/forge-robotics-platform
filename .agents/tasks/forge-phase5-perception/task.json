@@ -1,0 +1,7 @@
+{
+  "task_id": "task-forge-phase5-perception",
+  "task_description": "Implement Phase 5 — Perception (Camera + OpenCV) for the Forge robotics platform. Add camera-based perception via MuJoCo offscreen rendering + OpenCV HSV filtering, integrate with Runner/Recorder/Policy, add CLI tool, update docs.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}
