@@ -1,0 +1,17 @@
+# Forge training configuration — behavioral cloning
+training:
+  epochs: 100
+  batch_size: 64
+  learning_rate: 0.001
+  validation_split: 0.1
+  checkpoint_interval: 20
+
+model:
+  hidden_layers: [256, 256, 128]
+  obs_dim: 31
+  act_dim: 8
+
+data:
+  target_object: "red_cube"
+  demo_episodes: 3
+  demo_policy: "scripted_pick_and_place"
