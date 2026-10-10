@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "CLI tool scripts/forge_perception.py for render/detect/annotate. Independent of FEAT-001 in the sense that it only imports from forge_core.perception (created in FEAT-001), but must come after FEAT-001 since it depends on PerceptionPipeline existing.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Create scripts/forge_perception.py following the pattern of scripts/forge_eval.py (sys.path setup, argparse, setup_logging). Arguments: --scenario (required), --render, --detect, --annotate, -o/--output (default 'perception_output.png'), --azimuth, --elevation, --distance, --lookat (nargs=3, type=float), --steps (default 100), --verbose/-v.\n\n  Flow:\n  1. Parse args, setup logging.\n  2. Build camera_kwargs dict from provided camera args (only include non-None).\n  3. Try to create ForgeSimulation(args.scenario). On exception, print error and sys.exit(1).\n  4. Call sim.step(args.steps) to settle physics.\n  5. Create PerceptionPipeline(sim, **camera_kwargs).\n  6. If --render: img = pipeline.render(), convert RGB->BGR via cv2.cvtColor(img, cv2.COLOR_RGB2BGR), save with cv2.imwrite(output_path, bgr_img), print confirmation.\n  7. If --detect: result = pipeline.perceive(), print each detection (object_id, pixel_center, pixel_area, confidence, position). If no detections, print warning. If --annotate: draw bounding boxes on image \u2014 for each detection, use cv2.rectangle around pixel_center (\u00b130px box), use cv2.putText with label '{object_id} ({confidence:.0%})'. Color: red for red_cube (BGR: 0,0,255), blue for blue_cube (BGR: 255,0,0), gray for others. Convert RGB->BGR and save with cv2.imwrite.\n  8. pipeline.close(), sim.shutdown().",
+    "Step 2: Verify the CLI runs without errors: python3 scripts/forge_perception.py --scenario basic_workspace --render -o /tmp/forge_test_frame.png && python3 scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o /tmp/forge_test_detections.png. Both commands should exit 0 and create the output files."
+  ],
+  "acceptance_criteria": [
+    "scripts/forge_perception.py --scenario basic_workspace --render -o /tmp/test.png exits 0 and creates a PNG file",
+    "scripts/forge_perception.py --scenario basic_workspace --detect prints at least one detection",
+    "scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o /tmp/test.png creates an annotated PNG",
+    "scripts/forge_perception.py --scenario nonexistent exits with code 1 and a clear error message",
+    "All existing tests still pass after adding the script"
+  ],
+  "verification": [
+    "cd /root/forge && python3 scripts/forge_perception.py --scenario basic_workspace --render -o /tmp/forge_feat002_frame.png",
+    "cd /root/forge && python3 scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o /tmp/forge_feat002_det.png",
+    "cd /root/forge && python3 -m pytest tests/ -v"
+  ],
+  "blocked_reason": null,
+  "findings": "CLI tool created at scripts/forge_perception.py. --render, --detect, and --annotate all work correctly. Detects both red_cube and blue_cube in basic_workspace scenario. All 117 existing tests continue to pass."
+}
