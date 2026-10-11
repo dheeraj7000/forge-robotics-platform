@@ -280,10 +280,105 @@ Stage lifecycle: `training → validated → production → archived`.
 Only adjacent transitions are allowed. The only back-transition is
 `archived → validated` (re-activation).
 
+
+## Regression Testing
+
+Forge includes a regression evaluation system to detect performance
+degradations between code changes. Baselines capture known-good
+evaluation results; the regression checker compares current results
+against these baselines.
+
+### Configuration
+
+Regression thresholds are defined in `config/regression.yaml`:
+
+```yaml
+metric_tolerance: 0.1    # 10% tolerance for metric degradation
+allow_new_failures: false # fail if a previously passing task now fails
+suite: manipulation-v1   # default suite name
+```
+
+### Baseline Management
+
+```bash
+# Create a new baseline from current evaluation results
+python3 scripts/forge_regression.py --create-baseline --suite manipulation-v1
+
+# View the saved baseline
+python3 scripts/forge_regression.py --show-baseline --suite manipulation-v1
+
+# Update baseline after intentional changes
+python3 scripts/forge_regression.py --update-baseline --suite manipulation-v1
+
+# Compare two baselines side by side
+python3 scripts/forge_regression.py --compare baselines/old.json baselines/new.json
+```
+
+Baselines are stored as JSON in the `baselines/` directory and should
+be committed to the repository.
+
+### Regression Checking
+
+```bash
+# Run regression check against the saved baseline
+python3 scripts/forge_regression.py --check --suite manipulation-v1
+
+# Use a custom regression config
+python3 scripts/forge_regression.py --check --suite manipulation-v1 \
+  --threshold-config config/regression.yaml
+
+# Override the policy used for evaluation
+python3 scripts/forge_regression.py --check --suite manipulation-v1 \
+  --policy scripted_pick_and_place
+```
+
+The check command exits with code 0 if no regressions are detected,
+and code 1 if any task has regressed (newly failing or metrics degraded
+beyond tolerance).
+
+## CI/CD
+
+Forge uses GitHub Actions for continuous integration and regression
+evaluation. Workflow files are in `.github/workflows/`.
+
+### Test Workflow (`ci.yml`)
+
+Runs on every push and pull request to `main`.
+
+- **Python matrix**: 3.10, 3.11
+- **Headless rendering**: `MUJOCO_GL=egl`
+- **PyTorch**: CPU-only variant for faster installs
+- **Caching**: pip dependencies cached via `actions/cache@v4`
+- **Command**: `python3 -m pytest tests/ -v`
+
+### Regression Evaluation Workflow (`regression.yml`)
+
+Runs on pull requests to `main` and can be triggered manually via
+`workflow_dispatch`.
+
+- **Python**: 3.11
+- **Command**: `python3 scripts/forge_regression.py --check --suite manipulation-v1`
+- **On failure**: uploads `baselines/` directory as a build artifact
+  for debugging
+
+### Updating Baselines for CI
+
+When you intentionally change evaluation behavior (new policy, different
+task parameters), update the baseline before merging:
+
+```bash
+# Run evaluation and save new baseline
+python3 scripts/forge_regression.py --update-baseline --suite manipulation-v1
+
+# Commit the updated baseline
+git add baselines/manipulation-v1.json
+git commit -m "chore: update regression baseline"
+```
+
 ## Running Tests
 
 ```bash
-# All tests (215 tests, no ROS needed)
+# All tests (233 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module

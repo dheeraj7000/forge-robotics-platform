@@ -7,12 +7,12 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 7 — ML Infrastructure
+## Current Status: Phase 8 — CI/CD (Regression Evaluation)
 
-Phases 1–7 are complete: simulation foundation, task evaluation,
+Phases 1–8 are complete: simulation foundation, task evaluation,
 telemetry/replay, chaos testing, camera-based perception, learned
-policy via behavioral cloning, and ML infrastructure (experiment
-tracking + model registry).
+policy via behavioral cloning, ML infrastructure (experiment
+tracking + model registry), and CI/CD with regression evaluation.
 
 ### What's included
 
@@ -28,7 +28,10 @@ tracking + model registry).
 - **Learned policy** — PyTorch MLP trained via behavioral cloning from scripted demonstrations, configurable training pipeline with YAML config
 - **Experiment tracking** — file-based experiment tracker logging config, metrics, git commit, and tags per training run (JSON, zero external deps)
 - **Model registry** — versioned model registry with stage lifecycle (training → validated → production → archived), single-file JSON store
-- **215 automated tests**, all passing
+- **Regression evaluation** — automated baseline comparison to detect performance degradations, configurable metric tolerances
+- **CI/CD pipelines** — GitHub Actions workflows for testing (Python 3.10/3.11 matrix) and regression evaluation
+- **Baseline management** — JSON-based baseline storage with CLI for create, check, compare, and update
+- **233 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
@@ -53,7 +56,7 @@ pip install -e '.[ml]'  # PyTorch for learned policies (optional)
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 215 tests, no ROS needed
+python3 -m pytest tests/ -v     # 233 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -124,6 +127,26 @@ python3 scripts/forge_registry.py models promote bc_pick_red_cube --version 1 --
 python3 scripts/forge_eval.py --task pick_red_cube --policy learned --registry-model bc_pick_red_cube
 ```
 
+
+### Regression Testing
+
+```bash
+# Create a baseline from current evaluation results
+python3 scripts/forge_regression.py --create-baseline --suite manipulation-v1
+
+# Check for regressions against baseline
+python3 scripts/forge_regression.py --check --suite manipulation-v1
+
+# Show saved baseline
+python3 scripts/forge_regression.py --show-baseline --suite manipulation-v1
+
+# Update baseline after intentional changes
+python3 scripts/forge_regression.py --update-baseline --suite manipulation-v1
+
+# Compare two baselines
+python3 scripts/forge_regression.py --compare baselines/old.json baselines/new.json
+```
+
 ### ROS 2 (optional)
 
 ```bash
@@ -150,6 +173,7 @@ forge/
 │   ├── learned_policy.py    # PyTorch learned policy + BC training
 │   ├── experiment.py        # Experiment tracking (JSON-based)
 │   ├── model_registry.py    # Model registry with stage lifecycle
+│   ├── regression.py        # Regression evaluation and baseline management
 │   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
@@ -174,10 +198,11 @@ forge/
 │   └── cascading.yaml
 ├── experiments/             # Experiment tracking data (JSON per experiment)
 ├── registry/                # Model registry (registry.json)
+├── baselines/               # Regression baselines (JSON per suite)
 ├── runs/                    # Recorded run outputs
 ├── models/                  # Saved model .pt files
 ├── tests/
-│   ├── unit/                # 214 unit tests
+│   ├── unit/                # 232 unit tests
 │   └── integration/         # Acceptance tests
 ├── scripts/
 │   ├── run_forge.py         # Single-process ROS 2 launcher
@@ -187,10 +212,15 @@ forge/
 │   ├── forge_replay.py      # Run replay CLI
 │   ├── forge_perception.py  # Perception CLI
 │   ├── forge_train.py       # Training CLI
-│   └── forge_registry.py   # Experiment & model registry CLI
+│   ├── forge_registry.py   # Experiment & model registry CLI
+│   └── forge_regression.py  # Regression testing CLI
 ├── config/
 │   ├── default.yaml
-│   └── training.yaml        # ML training configuration
+│   ├── training.yaml        # ML training configuration
+│   └── regression.yaml      # Regression evaluation thresholds
+├── .github/workflows/       # CI/CD pipeline definitions
+│   ├── ci.yml               # Test workflow (Python matrix)
+│   └── regression.yml       # Regression evaluation workflow
 └── docs/
     ├── architecture.md      # System design (all phases)
     └── setup.md             # Installation and usage guide
@@ -218,7 +248,7 @@ forge/
 | 5 | Done | Perception (camera + OpenCV) |
 | 6 | Done | Learned policy (PyTorch) |
 | 7 | Done | ML infrastructure (experiment tracking, model registry) |
-| 8 | — | CI/CD (regression evaluation) |
+| 8 | Done | CI/CD (regression evaluation) |
 | 9 | — | Edge deployment (ONNX, TensorRT) |
 | 10 | — | Fleet & OTA |
 | 11 | — | Physical robot |

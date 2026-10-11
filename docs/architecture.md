@@ -6,10 +6,11 @@ Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
 It supports a lifecycle of develop → simulate → evaluate → record →
 detect failures → replay → improve.
 
-The current implementation covers Phases 1–7:
+The current implementation covers Phases 1–8:
 simulation, task evaluation, telemetry/replay, failure injection,
-camera-based perception, learned policy via behavioral cloning, and
-ML infrastructure (experiment tracking + model registry).
+camera-based perception, learned policy via behavioral cloning,
+ML infrastructure (experiment tracking + model registry), and
+CI/CD with regression evaluation.
 
 ## System Diagram
 
@@ -514,6 +515,110 @@ forge_registry.py models show NAME [--version VERSION]
 forge_registry.py models promote NAME --version VERSION --stage STAGE
 forge_registry.py models delete NAME --version VERSION
 ```
+
+---
+
+
+---
+
+## Phase 8 — CI/CD (Regression Evaluation)
+
+### Overview
+
+Phase 8 adds automated regression evaluation to detect performance
+degradations between code changes. A new regression module compares
+current evaluation results against saved baselines, integrated into
+GitHub Actions CI/CD pipelines for continuous quality gates.
+
+### Regression Module — `forge_core/regression.py`
+
+The module follows the same file-based JSON storage pattern used by
+ExperimentTracker and ModelRegistry. Zero ROS dependency.
+
+**Dataclasses:**
+
+| Dataclass | Purpose |
+|-----------|---------|
+| `Baseline` | Stored reference results: suite name, timestamp, git commit, tasks dict |
+| `RegressionResult` | Per-task comparison: passed, newly_failing, metric_deltas |
+| `RegressionReport` | Aggregate result with overall_passed, results list, summary(), to_dict() |
+
+**Key functions:**
+
+| Function | Purpose |
+|----------|---------|
+| `save_baseline()` | Convert EvalResult list to baseline JSON, write to `baselines/<suite>.json` |
+| `load_baseline()` | Load a saved baseline by suite name |
+| `check_regression()` | Compare current results against baseline, flag regressions |
+| `load_regression_config()` | Load thresholds from `config/regression.yaml` or return defaults |
+
+`check_regression()` iterates tasks, compares success status and key
+metrics (sim_time), flags newly failing tasks and metric degradations
+beyond the configured tolerance.
+
+### Baseline Management
+
+Baselines are JSON files in `baselines/` — one per evaluation suite.
+Structure:
+
+```json
+{
+  "suite_name": "manipulation-v1",
+  "timestamp": "2025-01-01T00:00:00",
+  "git_commit": "abc123",
+  "tasks": {
+    "pick_red_cube": {"success": true, "sim_time": 12.5, "metrics": {}},
+    "pick_blue_cube": {"success": false, "sim_time": 30.0, "metrics": {}}
+  }
+}
+```
+
+Baselines are created via CLI and committed to the repository so
+regressions are detected relative to a known-good state.
+
+### CI/CD Workflows
+
+Two GitHub Actions workflows under `.github/workflows/`:
+
+| Workflow | File | Trigger | Purpose |
+|----------|------|---------|---------|
+| Tests | `ci.yml` | push/PR to main | Run full test suite with Python 3.10/3.11 matrix |
+| Regression Evaluation | `regression.yml` | PR to main, manual | Run regression check against saved baselines |
+
+**ci.yml** features:
+- Python version matrix (3.10, 3.11)
+- pip dependency caching via `actions/cache@v4`
+- Headless MuJoCo rendering (`MUJOCO_GL=egl`)
+- CPU-only PyTorch install
+
+**regression.yml** features:
+- Runs `forge_regression.py --check --suite manipulation-v1`
+- Uploads `baselines/` as artifact on failure for debugging
+- Manual trigger via `workflow_dispatch`
+
+### CLI — `scripts/forge_regression.py`
+
+```
+forge_regression.py --check --suite manipulation-v1
+forge_regression.py --create-baseline --suite manipulation-v1
+forge_regression.py --update-baseline --suite manipulation-v1
+forge_regression.py --show-baseline --suite manipulation-v1
+forge_regression.py --compare baselines/v1.json baselines/v2.json
+forge_regression.py --check --suite manipulation-v1 --threshold-config config/regression.yaml
+```
+
+### Integration
+
+The regression module connects to existing components:
+
+- **EvalResult** from `forge_core/evaluator.py` — baseline tasks store
+  the same fields produced by evaluation
+- **run_suite()** from `forge_core/runner.py` — used to generate current
+  results for comparison
+- **`_get_git_commit`** from `forge_core/experiment.py` — tags baselines
+  with the commit hash at creation time
+- **`config/regression.yaml`** — YAML config loaded via the same pattern
+  as `config/training.yaml`
 
 ---
 

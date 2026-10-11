@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-003",
+  "type": "docs",
+  "description": "Update all project documentation for Phase 8: architecture.md (new Phase 8 section), README.md (status, features, structure, test count, roadmap), setup.md (regression CLI, CI/CD info). Depends on FEAT-001 (needs to know actual test count and module details) and FEAT-002 (needs workflow file names). Should run last.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Read context.json and FEAT-001.json findings to learn the actual test count and any implementation details that changed during FEAT-001.",
+    "Step 2: Update docs/architecture.md \u2014 add a 'Phase 8 \u2014 CI/CD (Regression Evaluation)' section after the existing Phase 7 section, following the same documentation pattern (overview paragraph, subsections for module, CLI, integration). Cover: (a) Regression Module overview \u2014 forge_core/regression.py with Baseline, RegressionResult, RegressionReport dataclasses and key methods; (b) Baseline Management \u2014 JSON format in baselines/, how save/load works; (c) CI/CD Workflows \u2014 ci.yml (test matrix, headless MuJoCo), regression.yml (eval + baseline comparison); (d) CLI \u2014 scripts/forge_regression.py with command examples; (e) Integration \u2014 how regression module uses EvalResult from evaluator.py and run_suite from runner.py.",
+    "Step 3: Update README.md \u2014 (a) Change 'Current Status' heading to 'Phase 8 \u2014 CI/CD (Regression Evaluation)'; (b) Update the overview paragraph to include Phase 8; (c) Add bullet points for regression evaluation, CI/CD pipeline, baseline management under 'What's included'; (d) Update test count to actual count from FEAT-001 findings; (e) Add 'Regression Testing' subsection under Quick Start with CLI examples (--create-baseline, --check, --show-baseline); (f) Add forge_core/regression.py, baselines/, .github/workflows/, scripts/forge_regression.py, config/regression.yaml to the project structure tree; (g) Update Phase 8 row in roadmap table to 'Done'; (h) Add a CI badge line at the top referencing the GitHub Actions test workflow.",
+    "Step 4: Update docs/setup.md \u2014 (a) Add 'Regression Testing' section after 'Experiment Tracking & Model Registry' with CLI examples for all forge_regression.py commands; (b) Add 'CI/CD' section explaining the two GitHub Actions workflows, how to trigger them, what they check, and how to update baselines; (c) Update the 'Running Tests' section test count to match actual."
+  ],
+  "acceptance_criteria": [
+    "docs/architecture.md has a Phase 8 section with regression module, baseline, CI/CD, and CLI documentation",
+    "README.md status shows Phase 8, test count is accurate, Phase 8 in roadmap is Done",
+    "README.md project structure includes new files (regression.py, baselines/, .github/workflows/, forge_regression.py, regression.yaml)",
+    "docs/setup.md has Regression Testing and CI/CD sections",
+    "No broken markdown formatting in any doc file"
+  ],
+  "verification": [
+    "python3 -m pytest tests/ -v",
+    "python3 -c \"open('docs/architecture.md').read().index('Phase 8'); print('Phase 8 section found in architecture.md')\"",
+    "python3 -c \"r=open('README.md').read(); assert 'Phase 8' in r; assert 'Done' in r.split('CI/CD')[1][:50] if 'CI/CD' in r else True; print('README.md updated')\"",
+    "python3 -c \"open('docs/setup.md').read().index('Regression'); print('Regression section found in setup.md')\""
+  ],
+  "blocked_reason": null,
+  "findings": "All three doc files updated for Phase 8. architecture.md has Phase 8 section covering regression module, baseline management, CI/CD workflows, CLI, and integration. README.md updated: status to Phase 8, test count to 233, added regression/CI/CD/baseline features, updated project structure tree with new files (regression.py, baselines/, .github/workflows/, forge_regression.py, regression.yaml), Phase 8 roadmap row marked Done, CI badge added. setup.md has new Regression Testing section (config, baseline management, regression checking CLI) and CI/CD section (ci.yml and regression.yml details, updating baselines). All 233 tests pass."
+}
