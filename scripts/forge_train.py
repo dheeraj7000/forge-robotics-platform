@@ -38,6 +38,8 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from forge_core.config import PROJECT_ROOT
+from forge_core.experiment import ExperimentTracker
+from forge_core.model_registry import ModelRegistry
 from forge_core.learned_policy import (
     collect_demos,
     load_training_config,
@@ -172,6 +174,12 @@ def main():
                         help="Policy to use for demo collection")
     parser.add_argument("--list-models", action="store_true",
                         help="List saved models and exit")
+    parser.add_argument("--experiment-name", type=str, default=None,
+                        help="Override auto-generated experiment name")
+    parser.add_argument("--model-name", type=str, default=None,
+                        help="Override auto-generated registry model name")
+    parser.add_argument("--no-track", action="store_true",
+                        help="Skip experiment tracking and model registration")
     parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args()
@@ -226,6 +234,33 @@ def main():
         )
         print(f"  {len(dataset)} observation-action pairs")
 
+    # Set up experiment tracking
+    tracker = None
+    experiment_id = None
+    if not args.no_track:
+        try:
+            tracker = ExperimentTracker()
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            exp_name = args.experiment_name or f"bc_{args.task}_{timestamp}"
+            dataset_info = {
+                "n_samples": len(dataset),
+                "source": "from_runs" if args.from_run else "collected",
+                "source_runs": args.from_run or [],
+                "target_object": cfg["target_object"],
+                "task": args.task,
+            }
+            experiment_id = tracker.create_experiment(
+                config=cfg,
+                dataset_info=dataset_info,
+                name=exp_name,
+                tags=[args.task, "bc"],
+            )
+            print(f"  Experiment: {experiment_id}")
+        except Exception as exc:
+            logger.warning("experiment tracking setup failed: %s", exc)
+            tracker = None
+            experiment_id = None
+
     # Train
     print(f"\nTraining for {cfg['epochs']} epochs (lr={cfg['lr']}, batch={cfg['batch_size']})...")
     result = train_bc(
@@ -237,9 +272,31 @@ def main():
         network=network,
         validation_split=cfg["validation_split"],
         checkpoint_interval=cfg["checkpoint_interval"],
+        experiment_id=experiment_id,
+        experiment_tracker=tracker,
     )
 
     print(f"\n{result.summary()}")
+
+    # Register model in registry
+    if not args.no_track and result.model_path:
+        try:
+            registry = ModelRegistry()
+            model_name = args.model_name or f"bc_{args.task}"
+            entry = registry.register_model(
+                name=model_name,
+                checkpoint_path=result.model_path,
+                experiment_id=experiment_id,
+                description=f"BC policy for {args.task}",
+                metadata={"final_loss": result.final_loss, "epochs": result.epochs},
+            )
+            print(f"  Registered model: {entry['name']} v{entry['version']}")
+        except Exception as exc:
+            logger.warning("model registration failed: %s", exc)
+
+    if experiment_id:
+        print(f"\n  Experiment ID: {experiment_id}")
+
     print(f"\nTo evaluate:")
     print(f"  python3 scripts/forge_eval.py --task {args.task} "
           f"--policy learned --model-path {result.model_path}")

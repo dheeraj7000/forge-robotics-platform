@@ -84,6 +84,10 @@ def main():
                         help="Override target object for policy")
     parser.add_argument("--model-path", type=str, default=None,
                         help="Path to trained model (for --policy learned)")
+    parser.add_argument("--registry-model", type=str, default=None,
+                        help="Load model from registry by name")
+    parser.add_argument("--registry-version", type=int, default=None,
+                        help="Model version to load from registry")
     parser.add_argument("--save", action="store_true", help="Save results to runs/")
     parser.add_argument("--record", action="store_true",
                         help="Record trajectories to runs/run_XXXXX/")
@@ -106,9 +110,25 @@ def main():
     policy_kwargs = {}
     if args.target_object:
         policy_kwargs["target_object"] = args.target_object
-    if args.model_path:
+
+    # Resolve model from registry if requested
+    policy_name = args.policy
+    if args.registry_model:
+        from forge_core.model_registry import ModelRegistry
+        registry = ModelRegistry()
+        entry = registry.get_model(args.registry_model, version=args.registry_version)
+        if entry is None:
+            version_str = f" v{args.registry_version}" if args.registry_version else ""
+            print(f"Error: model '{args.registry_model}{version_str}' not found in registry")
+            sys.exit(1)
+        policy_kwargs["model_path"] = entry["checkpoint_path"]
+        policy_name = "learned"
+        print(f"Loading from registry: {entry['name']} v{entry['version']} "
+              f"(stage={entry['stage']})")
+    elif args.model_path:
         policy_kwargs["model_path"] = args.model_path
-    policy = create_policy(args.policy, **policy_kwargs)
+
+    policy = create_policy(policy_name, **policy_kwargs)
 
     # Create fault injector if requested
     fault_injector = None

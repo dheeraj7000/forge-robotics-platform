@@ -325,6 +325,7 @@ class TrainResult:
     model_path: str
     history: list[float]
     val_history: list[float] = field(default_factory=list)
+    experiment_id: str | None = None
 
     def summary(self) -> str:
         s = (f"Training complete: {self.epochs} epochs, "
@@ -345,6 +346,8 @@ def train_bc(
     validation_split: float = 0.0,
     checkpoint_interval: int | None = None,
     checkpoint_dir: str | None = None,
+    experiment_id: str | None = None,
+    experiment_tracker: Any | None = None,
 ) -> TrainResult:
     """Train a policy via behavioral cloning.
 
@@ -360,6 +363,8 @@ def train_bc(
         validation_split: Fraction of data for validation (0.0–0.5).
         checkpoint_interval: Save a checkpoint every N epochs. None = no checkpoints.
         checkpoint_dir: Directory for checkpoint files. Defaults to models/.
+        experiment_id: Optional experiment ID for tracking.
+        experiment_tracker: Optional ExperimentTracker instance for logging.
 
     Returns:
         TrainResult with training history and model path.
@@ -367,95 +372,104 @@ def train_bc(
     import time
     from torch.utils.data import random_split
 
-    # Input guards
-    if len(dataset) == 0:
-        raise ValueError("Dataset is empty")
-    if not (0.0 <= validation_split <= 0.5):
-        raise ValueError(f"validation_split must be in [0.0, 0.5], got {validation_split}")
-    if checkpoint_interval is not None and checkpoint_interval < 1:
-        raise ValueError(f"checkpoint_interval must be >= 1, got {checkpoint_interval}")
+    try:
+        # Input guards
+        if len(dataset) == 0:
+            raise ValueError("Dataset is empty")
+        if not (0.0 <= validation_split <= 0.5):
+            raise ValueError(f"validation_split must be in [0.0, 0.5], got {validation_split}")
+        if checkpoint_interval is not None and checkpoint_interval < 1:
+            raise ValueError(f"checkpoint_interval must be >= 1, got {checkpoint_interval}")
 
-    if network is None:
-        network = PolicyNetwork()
+        if network is None:
+            network = PolicyNetwork()
 
-    # Train/val split
-    val_loader = None
-    train_size = len(dataset)
-    val_size = 0
-    if validation_split > 0:
-        val_size = max(1, int(len(dataset) * validation_split))
-        train_size = len(dataset) - val_size
-        if train_size < 1:
-            raise ValueError(
-                f"Dataset too small for requested validation split: "
-                f"{len(dataset)} samples with validation_split={validation_split} "
-                f"leaves {train_size} training samples"
+        # Train/val split
+        val_loader = None
+        train_size = len(dataset)
+        val_size = 0
+        if validation_split > 0:
+            val_size = max(1, int(len(dataset) * validation_split))
+            train_size = len(dataset) - val_size
+            if train_size < 1:
+                raise ValueError(
+                    f"Dataset too small for requested validation split: "
+                    f"{len(dataset)} samples with validation_split={validation_split} "
+                    f"leaves {train_size} training samples"
+                )
+            train_subset, val_subset = random_split(
+                dataset, [train_size, val_size],
+                generator=torch.Generator().manual_seed(42),
             )
-        train_subset, val_subset = random_split(
-            dataset, [train_size, val_size],
-            generator=torch.Generator().manual_seed(42),
-        )
-        loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-    else:
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-    optimizer = optim.Adam(network.parameters(), lr=lr)
-    loss_fn = nn.MSELoss()
-
-    history: list[float] = []
-    val_history: list[float] = []
-    network.train()
-
-    logger.info("bc_training_start: %d samples (train=%d, val=%d), epochs=%d, lr=%s, batch=%d",
-                len(dataset), train_size, val_size, epochs, lr, batch_size)
-
-    t_start = time.monotonic()
-
-    for epoch in range(epochs):
-        epoch_loss = 0.0
-        n_batches = 0
-        network.train()
-        for obs_batch, act_batch in loader:
-            pred = network(obs_batch)
-            loss = loss_fn(pred, act_batch)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            epoch_loss += loss.item()
-            n_batches += 1
-
-        avg_loss = epoch_loss / max(n_batches, 1)
-        history.append(avg_loss)
-
-        # Validation pass
-        if val_loader is not None:
-            network.eval()
-            val_loss_sum = 0.0
-            val_batches = 0
-            with torch.no_grad():
-                for obs_batch, act_batch in val_loader:
-                    pred = network(obs_batch)
-                    val_loss_sum += loss_fn(pred, act_batch).item()
-                    val_batches += 1
-            avg_val_loss = val_loss_sum / max(val_batches, 1)
-            val_history.append(avg_val_loss)
-            network.train()
-            logger.info("bc_epoch %d/%d: loss=%.6f val_loss=%.6f",
-                        epoch + 1, epochs, avg_loss, avg_val_loss)
+            loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+            val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
         else:
-            logger.info("bc_epoch %d/%d: loss=%.6f", epoch + 1, epochs, avg_loss)
+            loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-        # Checkpointing
-        if checkpoint_interval is not None:
-            if (epoch + 1) % checkpoint_interval == 0 or epoch == epochs - 1:
-                ckpt_dir = Path(checkpoint_dir) if checkpoint_dir else PROJECT_ROOT / "models"
-                ckpt_dir.mkdir(parents=True, exist_ok=True)
-                ckpt_path = ckpt_dir / f"bc_policy_epoch_{epoch + 1:03d}.pt"
-                torch.save(network.state_dict(), ckpt_path)
-                logger.info("checkpoint_saved: %s", ckpt_path)
+        optimizer = optim.Adam(network.parameters(), lr=lr)
+        loss_fn = nn.MSELoss()
+
+        history: list[float] = []
+        val_history: list[float] = []
+        network.train()
+
+        logger.info("bc_training_start: %d samples (train=%d, val=%d), epochs=%d, lr=%s, batch=%d",
+                    len(dataset), train_size, val_size, epochs, lr, batch_size)
+
+        t_start = time.monotonic()
+
+        for epoch in range(epochs):
+            epoch_loss = 0.0
+            n_batches = 0
+            network.train()
+            for obs_batch, act_batch in loader:
+                pred = network(obs_batch)
+                loss = loss_fn(pred, act_batch)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                epoch_loss += loss.item()
+                n_batches += 1
+
+            avg_loss = epoch_loss / max(n_batches, 1)
+            history.append(avg_loss)
+
+            # Validation pass
+            if val_loader is not None:
+                network.eval()
+                val_loss_sum = 0.0
+                val_batches = 0
+                with torch.no_grad():
+                    for obs_batch, act_batch in val_loader:
+                        pred = network(obs_batch)
+                        val_loss_sum += loss_fn(pred, act_batch).item()
+                        val_batches += 1
+                avg_val_loss = val_loss_sum / max(val_batches, 1)
+                val_history.append(avg_val_loss)
+                network.train()
+                logger.info("bc_epoch %d/%d: loss=%.6f val_loss=%.6f",
+                            epoch + 1, epochs, avg_loss, avg_val_loss)
+            else:
+                logger.info("bc_epoch %d/%d: loss=%.6f", epoch + 1, epochs, avg_loss)
+
+            # Checkpointing
+            if checkpoint_interval is not None:
+                if (epoch + 1) % checkpoint_interval == 0 or epoch == epochs - 1:
+                    ckpt_dir = Path(checkpoint_dir) if checkpoint_dir else PROJECT_ROOT / "models"
+                    ckpt_dir.mkdir(parents=True, exist_ok=True)
+                    ckpt_path = ckpt_dir / f"bc_policy_epoch_{epoch + 1:03d}.pt"
+                    torch.save(network.state_dict(), ckpt_path)
+                    logger.info("checkpoint_saved: %s", ckpt_path)
+
+    except Exception as exc:
+        if experiment_tracker is not None and experiment_id is not None:
+            try:
+                experiment_tracker.fail_experiment(experiment_id, str(exc))
+            except Exception:
+                logger.warning("failed to mark experiment %s as failed", experiment_id)
+        raise
 
     elapsed = time.monotonic() - t_start
 
@@ -475,12 +489,38 @@ def train_bc(
         logger.info("bc_training_complete: final_loss=%.6f, model=%s, time=%.1fs",
                      history[-1] if history else 0.0, save_path, elapsed)
 
+    # Complete experiment tracking
+    if experiment_tracker is not None and experiment_id is not None:
+        try:
+            best_epoch = None
+            best_loss = None
+            if history:
+                best_epoch = int(np.argmin(history))
+                best_loss = float(min(history))
+            metrics = {
+                "final_loss": history[-1] if history else 0.0,
+                "final_val_loss": val_history[-1] if val_history else None,
+                "loss_history": history,
+                "val_history": val_history,
+                "best_epoch": best_epoch,
+                "best_loss": best_loss,
+            }
+            experiment_tracker.complete_experiment(
+                experiment_id,
+                model_path=save_path,
+                metrics=metrics,
+                duration_seconds=elapsed,
+            )
+        except Exception:
+            logger.warning("failed to complete experiment %s", experiment_id)
+
     return TrainResult(
         epochs=epochs,
         final_loss=history[-1] if history else 0.0,
         model_path=save_path,
         history=history,
         val_history=val_history,
+        experiment_id=experiment_id,
     )
 
 

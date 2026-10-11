@@ -240,3 +240,44 @@ def format_suite_summary(results: list[EvalResult]) -> str:
     lines.append("=" * 60)
     lines.append("")
     return "\n".join(lines)
+
+
+def load_policy_from_registry(
+    name: str,
+    version: int | None = None,
+    stage: str | None = None,
+    **policy_kwargs,
+) -> Policy:
+    """Load a learned policy from the model registry.
+
+    Lazily imports ModelRegistry, looks up the model, resolves the
+    checkpoint path, and returns a LearnedPolicy instance.
+
+    Args:
+        name: Registered model name.
+        version: Exact version to load. If None, loads the latest.
+        stage: Filter by stage (e.g. 'production'). Ignored if version given.
+        **policy_kwargs: Extra keyword arguments passed to create_policy().
+
+    Returns:
+        A Policy instance loaded from the registered checkpoint.
+
+    Raises:
+        ValueError: If the model is not found in the registry.
+    """
+    from forge_core.model_registry import ModelRegistry
+    from forge_core.policy import create_policy
+
+    registry = ModelRegistry()
+    entry = registry.get_model(name, version=version, stage=stage)
+    if entry is None:
+        version_str = f" v{version}" if version else ""
+        stage_str = f" stage={stage}" if stage else ""
+        raise ValueError(
+            f"Model not found in registry: {name}{version_str}{stage_str}"
+        )
+
+    checkpoint_path = entry["checkpoint_path"]
+    logger.info("loading_policy_from_registry: %s v%d (%s)",
+                entry["name"], entry["version"], checkpoint_path)
+    return create_policy("learned", model_path=checkpoint_path, **policy_kwargs)
