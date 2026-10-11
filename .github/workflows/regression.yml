@@ -1,0 +1,42 @@
+name: Regression Evaluation
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    env:
+      MUJOCO_GL: egl
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-3.11-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-3.11-
+
+      - name: Install dependencies
+        run: |
+          pip install -e '.[dev]'
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Run regression check
+        run: python3 scripts/forge_regression.py --check --suite manipulation-v1
+
+      - name: Upload baselines on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-baselines
+          path: baselines/

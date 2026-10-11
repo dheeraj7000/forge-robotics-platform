@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "GitHub Actions CI/CD workflows: test pipeline (ci.yml) and regression evaluation pipeline (regression.yml). These are pure YAML configuration files under .github/workflows/. Independent of FEAT-003 (docs). Depends on FEAT-001 only for the regression workflow referencing the CLI script path.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Create .github/workflows/ci.yml — test workflow. Trigger: push to main, pull_request to main. Matrix: python-version [3.10, 3.11]. Steps: (a) actions/checkout@v4; (b) actions/setup-python@v5 with python-version from matrix; (c) pip cache using actions/cache@v4 with key based on pyproject.toml hash; (d) install deps: pip install -e '.[dev]' && pip install torch --index-url https://download.pytorch.org/whl/cpu; (e) env MUJOCO_GL=egl; (f) run: python3 -m pytest tests/ -v. Name the workflow 'Tests'.",
+    "Step 2: Create .github/workflows/regression.yml — regression evaluation workflow. Trigger: pull_request to main, workflow_dispatch (manual). Single python version: 3.11. Steps: (a) actions/checkout@v4; (b) actions/setup-python@v5; (c) pip cache; (d) install deps (same as ci.yml); (e) env MUJOCO_GL=egl; (f) run: python3 scripts/forge_regression.py --check --suite manipulation-v1; (g) on failure, use actions/upload-artifact@v4 to upload baselines/ directory as artifact for debugging. Name the workflow 'Regression Evaluation'.",
+    "Step 3: Validate both YAML files by loading them with Python yaml.safe_load to check syntax: python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); yaml.safe_load(open('.github/workflows/regression.yml')); print('Valid')\"."
+  ],
+  "acceptance_criteria": [
+    ".github/workflows/ci.yml exists with correct trigger, matrix, and test command",
+    ".github/workflows/regression.yml exists with correct trigger and regression check command",
+    "Both YAML files parse without error",
+    "CI workflow uses MUJOCO_GL=egl for headless rendering",
+    "CI workflow installs torch CPU-only variant",
+    "CI workflow caches pip dependencies",
+    "No ROS dependency in either workflow"
+  ],
+  "verification": [
+    "python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); yaml.safe_load(open('.github/workflows/regression.yml')); print('Valid')\"",
+    "python3 -m pytest tests/ -v"
+  ],
+  "blocked_reason": null,
+  "findings": "Both ci.yml and regression.yml created and validated. ci.yml: Tests workflow with Python 3.10/3.11 matrix, MUJOCO_GL=egl, torch CPU-only, pip cache, pytest. regression.yml: Regression Evaluation workflow with Python 3.11, runs forge_regression.py --check --suite manipulation-v1, uploads baselines/ artifact on failure. No ROS dependencies. Both YAML files parse cleanly. All 233 existing tests still pass."
+}
