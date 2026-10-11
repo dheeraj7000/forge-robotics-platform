@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Core regression evaluation module, baseline management, CLI script, regression YAML config, and unit tests. This is the main deliverable of Phase 8 — everything else depends on it. Follows the file-based JSON storage pattern from ExperimentTracker and ModelRegistry. The regression module lives at forge_core/regression.py with zero ROS dependency. Independent of FEAT-002 (CI workflows) and FEAT-003 (docs), which can be done in any order after this.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Create forge_core/regression.py with the RegressionChecker class. Model it after forge_core/experiment.py and forge_core/model_registry.py patterns. Include: (a) Baseline dataclass with fields: suite_name, timestamp, git_commit, tasks dict mapping task_name to {success: bool, sim_time: float, metrics: dict}; (b) RegressionResult dataclass: task_name, passed, baseline_success, current_success, newly_failing (bool), metric_deltas dict, details str; (c) RegressionReport dataclass: overall_passed (bool), results list of RegressionResult, timestamp, summary() method, to_dict() method; (d) save_baseline(results: list[EvalResult], suite_name: str, baselines_dir: Path | None = None) — converts EvalResult list to baseline JSON, writes to baselines/<suite_name>.json using EvalResult.to_dict() for metrics; (e) load_baseline(suite_name: str, baselines_dir: Path | None = None) → Baseline; (f) check_regression(current_results: list[EvalResult], baseline: Baseline, metric_tolerance: float = 0.1, allow_new_failures: bool = False) → RegressionReport — iterates tasks, compares success status and key metrics (sim_time), flags newly_failing tasks and metric degradations beyond tolerance; (g) load_regression_config(config_path: str | Path | None = None) → dict that loads config/regression.yaml or returns defaults. Use PROJECT_ROOT from forge_core.config. Import _get_git_commit from forge_core.experiment for baseline metadata.",
+    "Step 2: Create config/regression.yaml with default thresholds: metric_tolerance: 0.1, allow_new_failures: false, suite: manipulation-v1.",
+    "Step 3: Create scripts/forge_regression.py following the CLI pattern from scripts/forge_eval.py (sys.path injection, argparse, setup_logging). Subcommands via argparse: (a) --check --suite NAME: calls load_suite, run_suite with scripted policy, load_baseline, check_regression, prints report, exits 0/1; (b) --create-baseline --suite NAME: calls load_suite, run_suite, save_baseline, prints confirmation; (c) --update-baseline --suite NAME: alias for create-baseline; (d) --show-baseline --suite NAME: loads and pretty-prints baseline; (e) --compare FILE1 FILE2: loads two baselines and shows diff; (f) --policy NAME: override policy (default scripted_pick_and_place); (g) --threshold-config PATH: override regression config YAML. Make the script executable (#!/usr/bin/env python3).",
+    "Step 4: Create tests/unit/test_regression.py following the test patterns from tests/unit/test_experiment.py (class-based, tmp_path, _project_root sys.path injection, helper functions for sample data). Implement: TestBaselineSaveLoad (test_save_and_load_roundtrip, test_load_missing_raises, test_baseline_has_expected_fields, test_save_overwrites_existing), TestRegressionCheck (test_no_regression_matching_results, test_detect_newly_failing_task, test_detect_metric_degradation, test_within_tolerance_passes, test_missing_task_in_baseline, test_empty_results, test_allow_new_failures_flag, test_multiple_regressions), TestRegressionReport (test_summary_format, test_to_dict_serialization, test_overall_pass_fail_logic), TestThresholds (test_custom_metric_tolerance, test_load_config_from_yaml, test_default_config). Create mock EvalResult objects directly (don't need MuJoCo sim — just construct EvalResult(task_name=..., success=..., sim_time=..., metrics=...)). Target ~18 tests.",
+    "Step 5: Create baselines/ directory with an initial placeholder baseline baselines/manipulation-v1.json. Structure it matching what save_baseline produces: {suite_name, timestamp, git_commit, tasks: {pick_red_cube: {success, sim_time, metrics}, pick_blue_cube: {...}, pick_red_cube_spread: {...}}}. Use realistic placeholder values (success may be False for tasks the scripted policy doesn't fully solve — check evaluator test patterns). NOTE: If possible, generate this by actually running forge_regression.py --create-baseline --suite manipulation-v1, but if MuJoCo is not available, construct a reasonable placeholder.",
+    "Step 6: Run python3 -m pytest tests/ -v and confirm all tests pass (existing 215 + new ~18 regression tests). Fix any issues."
+  ],
+  "acceptance_criteria": [
+    "forge_core/regression.py exists with RegressionChecker functionality (save_baseline, load_baseline, check_regression)",
+    "config/regression.yaml exists with default thresholds",
+    "scripts/forge_regression.py --help prints usage without error",
+    "tests/unit/test_regression.py has ~18 tests that all pass",
+    "python3 -m pytest tests/ -v passes all tests (existing + new)",
+    "baselines/manipulation-v1.json exists and is valid JSON",
+    "No ROS imports in forge_core/regression.py"
+  ],
+  "verification": [
+    "python3 -m pytest tests/unit/test_regression.py -v",
+    "python3 -m pytest tests/ -v",
+    "python3 scripts/forge_regression.py --help",
+    "python3 -c \"import json; json.load(open('baselines/manipulation-v1.json'))\"",
+    "python3 -c \"from forge_core.regression import save_baseline, load_baseline, check_regression\""
+  ],
+  "blocked_reason": null,
+  "findings": "All 18 regression tests pass. Full suite: 233 tests pass (215 existing + 18 new). CLI --help works. Baseline JSON is valid. Zero ROS imports in regression.py. Baseline file uses placeholder values since MuJoCo is not available in this environment — pick_red_cube set to success=true, pick_blue_cube and pick_red_cube_spread set to success=false matching expected scripted policy behavior."
+}

@@ -1,0 +1,4 @@
+# Forge regression evaluation configuration
+metric_tolerance: 0.1
+allow_new_failures: false
+suite: manipulation-v1
