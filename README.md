@@ -7,11 +7,12 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 6 — Learned Policy (PyTorch)
+## Current Status: Phase 7 — ML Infrastructure
 
-Phases 1–6 are complete: simulation foundation, task evaluation,
-telemetry/replay, chaos testing, camera-based perception, and learned
-policy via behavioral cloning.
+Phases 1–7 are complete: simulation foundation, task evaluation,
+telemetry/replay, chaos testing, camera-based perception, learned
+policy via behavioral cloning, and ML infrastructure (experiment
+tracking + model registry).
 
 ### What's included
 
@@ -25,7 +26,9 @@ policy via behavioral cloning.
 - **Chaos testing** — 6 fault types, composable YAML profiles, compare mode
 - **Perception** — MuJoCo offscreen camera rendering, OpenCV HSV color detection, depth-based 3D position estimation
 - **Learned policy** — PyTorch MLP trained via behavioral cloning from scripted demonstrations, configurable training pipeline with YAML config
-- **149 automated tests**, all passing
+- **Experiment tracking** — file-based experiment tracker logging config, metrics, git commit, and tags per training run (JSON, zero external deps)
+- **Model registry** — versioned model registry with stage lifecycle (training → validated → production → archived), single-file JSON store
+- **215 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
@@ -50,7 +53,7 @@ pip install -e '.[ml]'  # PyTorch for learned policies (optional)
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 149 tests, no ROS needed
+python3 -m pytest tests/ -v     # 215 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -96,6 +99,31 @@ python3 scripts/forge_train.py --list-models
 python3 scripts/forge_eval.py --task pick_red_cube --policy learned --model-path models/bc_policy.pt
 ```
 
+### Experiment Tracking & Model Registry
+
+```bash
+# List all experiments
+python3 scripts/forge_registry.py experiments list
+
+# Show a specific experiment
+python3 scripts/forge_registry.py experiments show exp_00001
+
+# Compare two experiments side by side
+python3 scripts/forge_registry.py experiments compare exp_00001 exp_00002
+
+# List registered models
+python3 scripts/forge_registry.py models list
+
+# Show model details
+python3 scripts/forge_registry.py models show bc_pick_red_cube
+
+# Promote a model through stages
+python3 scripts/forge_registry.py models promote bc_pick_red_cube --version 1 --stage validated
+
+# Evaluate a model from the registry
+python3 scripts/forge_eval.py --task pick_red_cube --policy learned --registry-model bc_pick_red_cube
+```
+
 ### ROS 2 (optional)
 
 ```bash
@@ -120,6 +148,8 @@ forge/
 │   ├── replay.py            # Run replay and inspection
 │   ├── perception.py        # Camera rendering + object detection
 │   ├── learned_policy.py    # PyTorch learned policy + BC training
+│   ├── experiment.py        # Experiment tracking (JSON-based)
+│   ├── model_registry.py    # Model registry with stage lifecycle
 │   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
@@ -142,10 +172,12 @@ forge/
 │   ├── controller_dropout.yaml
 │   ├── gravity_shift.yaml
 │   └── cascading.yaml
+├── experiments/             # Experiment tracking data (JSON per experiment)
+├── registry/                # Model registry (registry.json)
 ├── runs/                    # Recorded run outputs
 ├── models/                  # Saved model .pt files
 ├── tests/
-│   ├── unit/                # 148 unit tests
+│   ├── unit/                # 214 unit tests
 │   └── integration/         # Acceptance tests
 ├── scripts/
 │   ├── run_forge.py         # Single-process ROS 2 launcher
@@ -153,8 +185,9 @@ forge/
 │   ├── forge_eval.py        # Task evaluation CLI
 │   ├── forge_chaos.py       # Chaos testing CLI
 │   ├── forge_replay.py      # Run replay CLI
-│   ├── forge_perception.py   # Perception CLI
-│   └── forge_train.py       # Training CLI
+│   ├── forge_perception.py  # Perception CLI
+│   ├── forge_train.py       # Training CLI
+│   └── forge_registry.py   # Experiment & model registry CLI
 ├── config/
 │   ├── default.yaml
 │   └── training.yaml        # ML training configuration
@@ -184,7 +217,7 @@ forge/
 | 4 | Done | Failure injection / chaos testing |
 | 5 | Done | Perception (camera + OpenCV) |
 | 6 | Done | Learned policy (PyTorch) |
-| 7 | — | ML infrastructure (experiment tracking, model registry) |
+| 7 | Done | ML infrastructure (experiment tracking, model registry) |
 | 8 | — | CI/CD (regression evaluation) |
 | 9 | — | Edge deployment (ONNX, TensorRT) |
 | 10 | — | Fleet & OTA |

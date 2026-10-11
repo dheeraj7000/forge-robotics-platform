@@ -6,9 +6,10 @@ Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
 It supports a lifecycle of develop → simulate → evaluate → record →
 detect failures → replay → improve.
 
-The current implementation covers Phases 1–6:
+The current implementation covers Phases 1–7:
 simulation, task evaluation, telemetry/replay, failure injection,
-camera-based perception, and learned policy via behavioral cloning.
+camera-based perception, learned policy via behavioral cloning, and
+ML infrastructure (experiment tracking + model registry).
 
 ## System Diagram
 
@@ -381,6 +382,141 @@ forge_eval.py --task pick_red_cube --policy learned --model-path models/bc_polic
 ```
 
 ---
+## Phase 7 — ML Infrastructure (Experiment Tracking + Model Registry)
+
+### Overview
+
+Phase 7 adds a self-contained, file-based ML infrastructure layer with
+zero external tracking dependencies (no MLflow/W&B). Two new modules
+provide experiment tracking and model versioning, both stored as JSON
+on disk and integrated into the existing training and evaluation pipeline.
+
+### Experiment Tracker — `forge_core/experiment.py`
+
+Tracks every training run with full metadata: configuration, dataset
+info, metrics history, timing, git commit hash, and tags.
+
+**On-disk format:** one JSON file per experiment under `experiments/`.
+
+```
+experiments/
+  exp_00001.json
+  exp_00002.json
+  ...
+```
+
+Each file contains:
+
+| Field | Content |
+|-------|---------|
+| `experiment_id` | Sequential ID (`exp_XXXXX`) |
+| `name` | Human-readable name (auto-generated or user-supplied) |
+| `timestamp` | ISO 8601 creation time |
+| `status` | `running`, `completed`, or `failed` |
+| `git_commit` | HEAD hash at creation time |
+| `config` | Full training config snapshot (epochs, lr, layers, etc.) |
+| `dataset_info` | Sample count, source type, source runs, task |
+| `metrics` | Final loss, validation loss, full loss/val history, best epoch |
+| `model_path` | Path to saved checkpoint |
+| `duration_seconds` | Wall-clock training time |
+| `tags` | User-defined labels |
+| `error` | Error message if status is `failed` |
+
+Sequential IDs use the same scanning pattern as `recorder.py`.
+
+**API:**
+
+| Method | Purpose |
+|--------|---------|
+| `create_experiment()` | Start a new experiment record |
+| `complete_experiment()` | Mark as completed with metrics |
+| `fail_experiment()` | Mark as failed with error message |
+| `get_experiment()` | Load one experiment by ID |
+| `list_experiments()` | List/filter experiments by status or tag |
+| `compare_experiments()` | Side-by-side metric comparison |
+| `delete_experiment()` | Remove experiment file from disk |
+
+### Model Registry — `forge_core/model_registry.py`
+
+Versioned model registry with enforced stage lifecycle. All entries
+live in a single `registry/registry.json` file.
+
+**Stage transitions:**
+
+```
+training ─> validated ─> production ─> archived
+                ^                          │
+                └──────────────────────────┘
+```
+
+Only adjacent transitions are allowed. Direct jumps (e.g., training →
+production) are rejected. The only back-transition is archived →
+validated (re-activation).
+
+**Registry entry fields:**
+
+| Field | Content |
+|-------|---------|
+| `name` | Model name (e.g. `bc_pick_red_cube`) |
+| `version` | Auto-incremented integer per model name |
+| `stage` | Current lifecycle stage |
+| `checkpoint_path` | Path to `.pt` file |
+| `experiment_id` | Link to the experiment that produced it |
+| `registered_at` | ISO 8601 registration time |
+| `description` | Free-text description |
+| `metadata` | Arbitrary key-value metadata (loss, epochs, etc.) |
+
+**API:**
+
+| Method | Purpose |
+|--------|---------|
+| `register_model()` | Add a new model version |
+| `get_model()` | Look up by name and optional version |
+| `list_models()` | List/filter by name or stage |
+| `promote()` | Advance a model to the next stage |
+| `delete_model()` | Remove a model entry |
+| `get_latest()` | Get the highest version of a given model name |
+
+### Integration Points
+
+- **`train_bc()`** in `forge_core/learned_policy.py` accepts optional
+  `experiment_tracker` and `experiment_id` parameters. When provided,
+  metrics are auto-logged on completion and the experiment is marked
+  failed on error. Callers that omit these parameters get identical
+  behavior to Phase 6.
+
+- **`scripts/forge_train.py`** orchestrates the full pipeline: creates
+  an experiment, passes the tracker to `train_bc()`, and registers the
+  model in the registry on success. Flags: `--no-track`,
+  `--experiment-name`, `--model-name`. Tracking failures are caught so
+  they never crash training.
+
+- **`scripts/forge_eval.py`** adds `--registry-model` and
+  `--registry-version` arguments to load a model directly from the
+  registry instead of specifying `--model-path`.
+
+- **`forge_core/runner.py`** provides a `load_policy_from_registry()`
+  convenience function that resolves a model name/version from the
+  registry and returns a `LearnedPolicy` instance.
+
+### CLI — `scripts/forge_registry.py`
+
+Separate management CLI with two command groups:
+
+```
+forge_registry.py experiments list [--status STATUS] [--tag TAG]
+forge_registry.py experiments show EXP_ID
+forge_registry.py experiments compare EXP_ID1 EXP_ID2
+forge_registry.py experiments delete EXP_ID
+
+forge_registry.py models list [--name NAME] [--stage STAGE]
+forge_registry.py models show NAME [--version VERSION]
+forge_registry.py models promote NAME --version VERSION --stage STAGE
+forge_registry.py models delete NAME --version VERSION
+```
+
+---
+
 ## Design Principles
 
 1. **forge_core has no ROS dependency** — everything can be tested with pytest alone

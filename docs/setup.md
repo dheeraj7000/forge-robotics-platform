@@ -205,10 +205,85 @@ python3 scripts/forge_eval.py --task pick_red_cube --policy learned --model-path
 > **Note**: Glob patterns in `--from-run` are expanded by the shell. On
 > Windows, use explicit paths or run inside WSL.
 
+## Experiment Tracking & Model Registry
+
+Forge automatically tracks experiments and registers models during training.
+No external dependencies (MLflow/W&B) are required — everything is stored
+as JSON on disk.
+
+### Experiment Management
+
+```bash
+# List all experiments (filter by status or tag)
+python3 scripts/forge_registry.py experiments list
+python3 scripts/forge_registry.py experiments list --status completed
+python3 scripts/forge_registry.py experiments list --tag pick_red_cube
+
+# Show full details for an experiment
+python3 scripts/forge_registry.py experiments show exp_00001
+
+# Compare two experiments (metrics side by side)
+python3 scripts/forge_registry.py experiments compare exp_00001 exp_00002
+
+# Delete an experiment
+python3 scripts/forge_registry.py experiments delete exp_00003
+```
+
+### Model Registry
+
+```bash
+# List all registered models (filter by name or stage)
+python3 scripts/forge_registry.py models list
+python3 scripts/forge_registry.py models list --stage validated
+
+# Show model details
+python3 scripts/forge_registry.py models show bc_pick_red_cube
+python3 scripts/forge_registry.py models show bc_pick_red_cube --version 1
+
+# Promote a model through the stage lifecycle
+python3 scripts/forge_registry.py models promote bc_pick_red_cube --version 1 --stage validated
+python3 scripts/forge_registry.py models promote bc_pick_red_cube --version 1 --stage production
+
+# Delete a model entry
+python3 scripts/forge_registry.py models delete bc_pick_red_cube --version 1
+```
+
+### Training with Experiment Tracking
+
+Experiments are tracked automatically by default when using `forge_train.py`:
+
+```bash
+# Training auto-creates an experiment and registers the model
+python3 scripts/forge_train.py --task pick_red_cube --episodes 5
+
+# Disable tracking
+python3 scripts/forge_train.py --task pick_red_cube --episodes 5 --no-track
+
+# Custom experiment and model names
+python3 scripts/forge_train.py --task pick_red_cube --episodes 5 \
+  --experiment-name my_experiment --model-name my_model
+```
+
+### Evaluating from Registry
+
+```bash
+# Load a model from the registry by name (uses latest version)
+python3 scripts/forge_eval.py --task pick_red_cube --policy learned \
+  --registry-model bc_pick_red_cube
+
+# Load a specific version
+python3 scripts/forge_eval.py --task pick_red_cube --policy learned \
+  --registry-model bc_pick_red_cube --registry-version 1
+```
+
+Stage lifecycle: `training → validated → production → archived`.
+Only adjacent transitions are allowed. The only back-transition is
+`archived → validated` (re-activation).
+
 ## Running Tests
 
 ```bash
-# All tests (149 tests, no ROS needed)
+# All tests (215 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module
