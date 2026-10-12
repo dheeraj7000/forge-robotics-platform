@@ -1,0 +1,26 @@
+{
+  "project_type": "Python robotics platform — MuJoCo simulation + PyTorch ML, CLI-driven",
+  "language": "Python 3.10+",
+  "build_system": "setuptools via pyproject.toml, pip install -e '.[dev,ml]'",
+  "test_framework": "pytest >= 7.0 with pytest-timeout",
+  "build_command": "pip install -e '.[dev,ml]' (already installed in dev environment)",
+  "test_command": "python3 -m pytest tests/ -v",
+  "verification_instructions": "1. Run python3 -m pytest tests/ -v and confirm 117+ tests pass, 0 failures. 2. Run python3 -m pytest tests/unit/test_learned_policy.py -v to verify learned policy tests specifically.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "All commands run via WSL: use 'wsl -e bash -c \"cd /root/forge && <cmd>\"'. PyTorch is already installed. forge_core/ must have ZERO ROS imports. Use Linux paths /root/forge/... inside commands.",
+  "contribution_requirements": "No AGENTS.md or CONTRIBUTING.md found. Follow existing code patterns: from __future__ import annotations, logging.getLogger(__name__), dataclass usage, type hints, PROJECT_ROOT from forge_core.config.",
+  "key_patterns": "Policy ABC: reset(sim)/act(sim)->np.ndarray/done/name. Config loading via forge_core.config.load_yaml(path). YAML-driven configs in config/ and tasks/. Scripts in scripts/ with argparse. Tests in tests/unit/ organized by test class per feature. Lazy import of learned policy in create_policy to avoid torch dependency.",
+  "relevant_files": [
+    "forge_core/learned_policy.py",
+    "scripts/forge_train.py",
+    "tests/unit/test_learned_policy.py",
+    "forge_core/policy.py",
+    "forge_core/config.py",
+    "pyproject.toml",
+    "config/default.yaml",
+    "docs/architecture.md",
+    "docs/setup.md",
+    "README.md"
+  ],
+  "directory_structure": "forge/ — project root. forge_core/ — core library (no ROS). scripts/ — CLI tools (forge_eval.py, forge_train.py, etc.). tests/unit/ — pytest unit tests. config/ — YAML configs. docs/ — architecture.md + setup.md. simulation/scenarios/ — MuJoCo scene YAML. tasks/ — task YAML definitions. runs/ — recorded run outputs. models/ — saved model .pt files (created on demand)."
+}

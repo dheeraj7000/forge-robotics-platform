@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase9-edge-deploy",
+  "task_description": "Implement Phase 9 — Edge Deployment (ONNX, TensorRT) for the Forge robotics reliability platform. Adds ONNX export from PolicyNetwork, optional TensorRT optimization, edge inference runtime implementing Policy ABC, deployment packaging with metadata, CLI, integration with model registry and runner, comprehensive tests, and documentation.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

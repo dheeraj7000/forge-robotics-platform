@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase11-physical-robot",
+  "task_description": "Implement Phase 11 — Physical Robot Support. Adds hardware abstraction layer, safety system, sim-to-real transfer utilities, physical robot runner, CLI, YAML configuration, tests, and documentation updates to complete the Forge platform.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

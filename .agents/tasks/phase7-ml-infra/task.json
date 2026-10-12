@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase7-ml-infra",
+  "task_description": "Phase 7: Add self-contained, file-based ML infrastructure (experiment tracking + model registry) to Forge, with integration into the training/eval pipeline and CLI management commands.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

@@ -1,0 +1,8 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    "No-JS invisible content — All .fade-in elements start with opacity: 0 in CSS. If JavaScript is disabled or fails to load, most page content is invisible. Add a <noscript><style>.fade-in { opacity: 1; transform: none; }</style></noscript> block. Non-blocking for a project docs site.",
+    "aria-expanded not toggled on hamburger — The hamburger button declares aria-expanded=\"false\" but the JS toggle never updates this attribute, so screen readers won't announce menu open/closed state. Add hamburger.setAttribute('aria-expanded', nav.classList.contains('nav-open')) after the toggle."
+  ],
+  "reviewDoc": ".agents/tasks/site/review.md"
+}

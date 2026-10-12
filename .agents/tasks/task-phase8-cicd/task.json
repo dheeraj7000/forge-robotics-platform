@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase8-cicd",
+  "task_description": "Implement Phase 8 CI/CD with regression evaluation: core regression module, baseline management, CLI, GitHub Actions workflows, tests, and documentation updates",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

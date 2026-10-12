@@ -1,0 +1,40 @@
+{
+  "project_type": "Python robotics reliability platform with MuJoCo simulation, PyTorch ML, pytest tests",
+  "language": "Python 3.10+",
+  "build_system": "setuptools via pyproject.toml, pip install -e '.[ml]' for PyTorch extras",
+  "test_framework": "pytest with markers: @unit (no ROS), @integration (ROS). Currently 149 tests, all passing.",
+  "build_command": "pip install -e '.[ml]' (no separate build step — pure Python)",
+  "test_command": "cd /root/forge && python3 -m pytest tests/ -v",
+  "verification_instructions": "Run python3 -m pytest tests/ -v from /root/forge. All 149 existing tests must continue to pass. New tests for experiment tracking and model registry must also pass.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "WSL Ubuntu environment. Use 'wsl -d Ubuntu -e bash -c \"cd /root/forge && <cmd>\"' to run commands. PyTorch is available (installed under [ml] extra). No ROS required for testing.",
+  "contribution_requirements": "forge_core/ modules have ZERO ROS dependency. All configuration is YAML-driven. JSON/YAML for persistent data. Human-readable files. No external ML tracking deps (no MLflow/W&B). Run data lives in runs/run_XXXXX/. Match existing code style: dataclasses, logging with logger = logging.getLogger(__name__), type hints, docstrings.",
+  "key_patterns": [
+    "Modules use PROJECT_ROOT from forge_core.config for all path resolution",
+    "Classes use @dataclass for data containers (TrainResult, RunRecord, EvalResult)",
+    "Registries are dicts mapping names to classes (POLICY_REGISTRY, FAULT_REGISTRY)",
+    "CLI scripts add project root to sys.path, use argparse, call setup_logging()",
+    "Config files live in config/, use load_yaml() from forge_core.config",
+    "Saved artifacts use sequential IDs: run_XXXXX, and JSON for metadata",
+    "Tests use pytest fixtures, tmp_path for file I/O, monkeypatch for isolation",
+    "train_bc() returns a TrainResult dataclass with training history",
+    "Policy loading via create_policy(name, **kwargs) with lazy imports"
+  ],
+  "relevant_files": [
+    "/root/forge/forge_core/learned_policy.py — train_bc(), TrainResult, collect_demos(), DemoDataset, PolicyNetwork, LearnedPolicy",
+    "/root/forge/forge_core/config.py — PROJECT_ROOT, load_yaml(), resolve_model_path()",
+    "/root/forge/forge_core/policy.py — Policy ABC, create_policy(), POLICY_REGISTRY",
+    "/root/forge/forge_core/runner.py — run_task(), run_task_by_name(), STEPS_PER_CYCLE",
+    "/root/forge/forge_core/recorder.py — get_next_run_id() pattern for sequential IDs, save_run()",
+    "/root/forge/forge_core/replay.py — RunRecord, load_run(), list_runs()",
+    "/root/forge/scripts/forge_train.py — CLI for training, merge_training_config(), list_models()",
+    "/root/forge/scripts/forge_eval.py — CLI for evaluation, --policy learned --model-path",
+    "/root/forge/config/training.yaml — training config structure",
+    "/root/forge/tests/unit/test_learned_policy.py — test patterns: synthetic_run_dir fixture, DemoDataset tests, config merge tests",
+    "/root/forge/tests/unit/test_faults.py — TestFaultRegistry pattern for registry tests",
+    "/root/forge/docs/architecture.md — phase documentation pattern",
+    "/root/forge/docs/setup.md — CLI usage documentation pattern",
+    "/root/forge/README.md — status, structure, features, test count, roadmap"
+  ],
+  "directory_structure": "forge/ (project root) -> forge_core/ (core library, no ROS), scripts/ (CLI tools), config/ (YAML configs), tests/unit/ + tests/integration/, tasks/ (task YAMLs), faults/ (fault YAMLs), runs/ (recorded runs), models/ (saved .pt files), docs/ (architecture.md, setup.md), simulation/ (MuJoCo models/worlds/scenarios)"
+}

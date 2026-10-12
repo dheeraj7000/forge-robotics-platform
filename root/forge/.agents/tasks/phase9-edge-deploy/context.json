@@ -1,0 +1,41 @@
+{
+  "project_type": "Python robotics reliability platform with MuJoCo simulation, PyTorch ML, file-based JSON storage",
+  "language": "Python 3.10+",
+  "build_system": "setuptools via pyproject.toml, pip install -e '.[dev,ml]'",
+  "test_framework": "pytest with markers: @pytest.mark.unit, @pytest.mark.integration",
+  "build_command": "pip install -e '.[dev,ml,edge]'",
+  "test_command": "python3 -m pytest tests/ -v",
+  "verification_instructions": "1. Run python3 -m pytest tests/ -v and confirm all tests pass. 2. Run python3 -c 'from forge_core.edge_deploy import OnnxExporter, OnnxPolicy, EdgePolicy' to verify imports.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "TensorRT is NEVER a pip dependency — detect at runtime, skip gracefully when absent. onnx/onnxruntime are optional under [edge] extra. Tests must pass without TensorRT via pytest.mark.skipif. MuJoCo rendering needs MUJOCO_GL=egl in CI.",
+  "contribution_requirements": "forge_core/ has ZERO ROS dependency. Everything is YAML-driven. Tests in tests/unit/ and tests/integration/. CLI scripts in scripts/. Docs in docs/architecture.md, docs/setup.md, README.md.",
+  "key_patterns": {
+    "policy_abc": "forge_core/policy.py — Policy ABC with reset(sim), act(sim)->ndarray, done->bool, name->str properties",
+    "policy_registration": "forge_core/policy.py — POLICY_REGISTRY dict + create_policy() with lazy imports for ML-dependent policies",
+    "network_shape": "forge_core/learned_policy.py — PolicyNetwork(obs_dim=31, act_dim=8, hidden=[256,256,128]), MLP with Tanh, forward(obs)->action",
+    "observation": "forge_core/learned_policy.py — extract_observation(sim, target_object) returns 31-dim float32 ndarray, OBS_DIM=31, ACT_DIM=8",
+    "model_registry": "forge_core/model_registry.py — ModelRegistry with register_model(), get_model(name, version, stage), list_models(), promote(), stages: training->validated->production->archived",
+    "runner_registry_loading": "forge_core/runner.py — load_policy_from_registry(name, version, stage, **policy_kwargs) uses ModelRegistry + create_policy('learned', model_path=...)",
+    "eval_cli_pattern": "scripts/forge_eval.py — argparse-based, uses create_policy(), supports --registry-model/--registry-version, --model-path",
+    "test_pattern": "tests/unit/ — sys.path insert for project_root, pytest fixtures with tmp_path, TestXxx classes, no ROS deps",
+    "config_pattern": "forge_core/config.py — load_yaml(), PROJECT_ROOT, config/*.yaml files",
+    "pyproject_extras": "pyproject.toml — [ml] extra for torch, [dev] for pytest"
+  },
+  "relevant_files": [
+    "forge_core/policy.py",
+    "forge_core/learned_policy.py",
+    "forge_core/model_registry.py",
+    "forge_core/runner.py",
+    "forge_core/config.py",
+    "forge_core/__init__.py",
+    "scripts/forge_eval.py",
+    "pyproject.toml",
+    "config/training.yaml",
+    "tests/unit/test_learned_policy.py",
+    "tests/unit/test_model_registry.py",
+    "docs/architecture.md",
+    "docs/setup.md",
+    "README.md"
+  ],
+  "directory_structure": "forge_core/ = core lib (no ROS), scripts/ = CLI tools, tests/unit/ = unit tests, tests/integration/ = acceptance, config/ = YAML configs, docs/ = architecture.md + setup.md, registry/ = model registry JSON, models/ = .pt checkpoints, simulation/scenarios/ = YAML scenarios, tasks/ = YAML task defs, faults/ = YAML fault profiles, baselines/ = regression baselines"
+}

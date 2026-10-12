@@ -1,0 +1,55 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "MEDIUM",
+      "title": "enable_depth_rendering API calling convention is wrong (§2.2, §2.3)",
+      "description": "Design uses enable_depth_rendering(True/False) but MuJoCo Python API has parameterless enable_depth_rendering() and disable_depth_rendering(). Passing True raises TypeError.",
+      "fix": "Replace enable_depth_rendering(True) with enable_depth_rendering() and enable_depth_rendering(False) with disable_depth_rendering() at all four call sites."
+    },
+    {
+      "id": 2,
+      "severity": "MEDIUM",
+      "title": "pixel_center tuple ordering is ambiguous and inconsistent with unprojection (§2.3, §2.4)",
+      "description": "Detection docstring says pixel_center is (row, col) but OpenCV moments produce (cx=col, cy=row). Without explicit construction code, implementer may store (col, row), causing swapped X/Y in the §2.4 unprojection.",
+      "fix": "Add explicit pixel_center=(cy, cx) in detector construction to match (row, col) docstring. Show row, col = detection.pixel_center in §2.4 unprojection."
+    },
+    {
+      "id": 3,
+      "severity": "NIT",
+      "title": "Depth linearization heuristic fragile for close-up cameras (§2.2)",
+      "description": "raw.max() <= 1.0 check fails when MuJoCo returns linearized depth and all geometry is within 1.0m.",
+      "fix": "Add a comment documenting the heuristic assumes camera distance >= 1.0m."
+    },
+    {
+      "id": 4,
+      "severity": "NIT",
+      "title": "render() buffer reuse risk not addressed (§2.3)",
+      "description": "MuJoCo Renderer.render() may return a view of an internal buffer. perceive() renders RGB then depth sequentially without copying.",
+      "fix": "Add .copy() to the RGB render call in perceive(): image = self._renderer.render().copy()"
+    },
+    {
+      "id": 5,
+      "severity": "NIT",
+      "title": "Runner frame recording placement within while loop is ambiguous (§2.5)",
+      "description": "Code snippet layout makes it unclear whether frame recording is per-step (inside while loop) or post-loop.",
+      "fix": "Add note: frame recording block goes inside the while loop, after the existing trajectory.record_step() call."
+    },
+    {
+      "id": 6,
+      "severity": "NIT",
+      "title": "PerceptionPolicy constructor failure leaves finally calling close() on unwrapped policy (§2.5)",
+      "description": "If PerceptionPolicy(policy, sim) raises, policy still points to the original Policy which has no close(). The finally block calls policy.close() → AttributeError.",
+      "fix": "Use a perception_active flag set after successful wrapping; check it in the finally block."
+    },
+    {
+      "id": 7,
+      "severity": "NIT",
+      "title": "MjvOption argument omitted from update_scene() calls (§2.2, §2.3)",
+      "description": "Design shows update_scene(data, camera) with two args. Existing code passes an MjvOption() as the third argument. While optional, the omission is inconsistent with the existing codebase.",
+      "fix": "Add MjvOption() to the constructor and pass it to update_scene(), or note that default scene options are sufficient."
+    }
+  ],
+  "reviewDoc": "\\\\wsl.localhost\\Ubuntu\\root\\forge\\.agents\\tasks\\forge-phase5-perception/design-review.md"
+}

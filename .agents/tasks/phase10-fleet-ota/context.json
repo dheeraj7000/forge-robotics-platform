@@ -1,0 +1,32 @@
+{
+  "project_type": "Python robotics reliability platform — MuJoCo simulation + ML training + edge deployment. No web server, no cloud.",
+  "language": "Python 3.10+",
+  "build_system": "setuptools via pyproject.toml; pip install -e '.[dev,ml,edge]'. No build step beyond pip install.",
+  "test_framework": "pytest (>=7.0) with pytest-timeout. Markers: unit, integration, edge_deploy.",
+  "build_command": "pip install -e '.[dev]'",
+  "test_command": "python3 -m pytest tests/ -v",
+  "verification_instructions": "Run 'python3 -m pytest tests/ -v' from /root/forge. All tests must pass. Currently 272 tests passing.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "No ROS 2 available in test env. No TensorRT. ONNX Runtime is installed. PyTorch is installed. All forge_core modules must have ZERO ROS dependency. All fleet/OTA operations must be LOCAL and SIMULATED — no network calls, no real device communication. File-based JSON/YAML persistence only.",
+  "contribution_requirements": "No AGENTS.md or CONTRIBUTING.md found. Key conventions from README and codebase: forge_core/ has zero ROS deps, YAML-driven config, file-based JSON persistence for state (experiments/, registry/, baselines/), tests in tests/unit/ and tests/integration/, CLI scripts in scripts/, docs at docs/architecture.md + docs/setup.md + README.md. Each core module follows the pattern: dataclasses + manager class with __init__(dir: Path | None = None) defaulting to PROJECT_ROOT / <subdir>.",
+  "key_patterns": "1) Manager classes take optional dir param, default to PROJECT_ROOT / subdir. 2) Persistence via _load/_save helpers reading/writing JSON with json.load/dump. 3) Dataclasses with to_dict()/from_dict() for serialization. 4) Tests use tmp_path fixture for isolation, class-based grouping (TestXxxCreation, TestXxxRetrieval, etc.). 5) Test files start with sys.path insert of project root. 6) CLI scripts use argparse with subparsers, setup_logging(), main() pattern. 7) CLI scripts start with #!/usr/bin/env python3 and sys.path hack. 8) Logging via logger = logging.getLogger(__name__). 9) from __future__ import annotations at top of every file.",
+  "relevant_files": [
+    "forge_core/model_registry.py",
+    "forge_core/experiment.py",
+    "forge_core/edge_deploy.py",
+    "forge_core/config.py",
+    "forge_core/policy.py",
+    "forge_core/__init__.py",
+    "tests/unit/test_model_registry.py",
+    "tests/unit/test_experiment.py",
+    "tests/unit/test_edge_deploy.py",
+    "scripts/forge_registry.py",
+    "scripts/forge_deploy.py",
+    "config/deploy.yaml",
+    "pyproject.toml",
+    "README.md",
+    "docs/architecture.md",
+    "docs/setup.md"
+  ],
+  "directory_structure": "forge_core/ — core Python modules (simulation, task, policy, evaluator, runner, faults, recorder, replay, perception, learned_policy, experiment, model_registry, regression, edge_deploy, config). tests/unit/ — 18 test files, 272 tests total. tests/integration/ — 1 acceptance test file. scripts/ — 10 CLI scripts. config/ — YAML configs (default, training, regression, deploy). docs/ — architecture.md, setup.md. Top-level data dirs: experiments/, registry/, baselines/, runs/, models/. Fleet data will go in fleet/, OTA data in ota/."
+}

@@ -1,0 +1,41 @@
+{
+  "project_type": "Python robotics reliability platform — MuJoCo simulation + ROS 2 nodes (separate)",
+  "language": "Python 3.10+",
+  "build_system": "setuptools via pyproject.toml, pip install -e .",
+  "test_framework": "pytest with testpaths=['tests'], markers: unit, integration, edge_deploy",
+  "build_command": "No explicit build step — pure Python. 'pip install -e .' for editable install.",
+  "test_command": "python3 -m pytest tests/ -v",
+  "verification_instructions": "Run `python3 -m pytest tests/ -v` from /root/forge. All 328 existing tests must pass plus new tests for Phase 11 modules.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "Running in WSL Ubuntu at /root/forge. MuJoCo rendering requires MUJOCO_GL=egl for headless. No physical hardware. onnxruntime/torch optional (lazy imports). ZERO ROS dependency in forge_core/.",
+  "contribution_requirements": "forge_core/ has ZERO ROS dependency. Everything YAML-driven. Match existing dataclass + JSON/YAML persistence patterns. Lazy imports for heavy optional deps. Tests use tmp_path fixtures. CLI scripts add project root to sys.path.",
+  "key_patterns": {
+    "dataclass_style": "Use @dataclass with to_dict()/from_dict() classmethods for serialization — see DeviceInfo in fleet.py, UpdatePackage in ota.py",
+    "config_loading": "YAML files in config/, loaded via forge_core.config.load_yaml(). PROJECT_ROOT from config.py.",
+    "test_style": "Tests in tests/unit/test_*.py. Use pytest classes (TestXxx). Use tmp_path for file-based managers. Import with sys.path hack at top. No fixtures file — inline helpers.",
+    "cli_style": "Scripts in scripts/forge_*.py. argparse with subparsers. sys.path insert at top. Logging config. Main guard.",
+    "module_docstrings": "Top-level docstring with module purpose. 'Phase N — FEAT-NNN.' at end. Section separators with # ── Title ──",
+    "manager_pattern": "Manager classes take optional dir Path, default to PROJECT_ROOT / 'subdir'. _load/_save JSON persistence. Sequential ID generation (_next_*_id). ValueError for not-found.",
+    "policy_interface": "Policy ABC: reset(sim: ForgeSimulation), act(sim: ForgeSimulation) -> np.ndarray, done -> bool, name -> str"
+  },
+  "relevant_files": [
+    "forge_core/simulation.py",
+    "forge_core/policy.py",
+    "forge_core/runner.py",
+    "forge_core/recorder.py",
+    "forge_core/config.py",
+    "forge_core/fleet.py",
+    "forge_core/ota.py",
+    "forge_core/edge_deploy.py",
+    "config/fleet.yaml",
+    "config/deploy.yaml",
+    "scripts/forge_fleet.py",
+    "tests/unit/test_fleet.py",
+    "tests/unit/test_ota.py",
+    "docs/architecture.md",
+    "docs/setup.md",
+    "README.md",
+    "pyproject.toml"
+  ],
+  "directory_structure": "forge_core/ — core Python modules (no ROS); ros2_ws/ — ROS 2 nodes; simulation/scenarios/ — YAML scenarios; tasks/ — task YAML; faults/ — fault profiles; config/ — YAML configs; scripts/ — CLI entry points; tests/unit/ — pytest unit tests; tests/integration/ — integration tests; docs/ — architecture.md, setup.md; README.md at root"
+}

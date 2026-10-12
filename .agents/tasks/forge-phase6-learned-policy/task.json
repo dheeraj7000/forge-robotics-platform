@@ -1,0 +1,7 @@
+{
+  "task_id": "task-forge-phase6-learned-policy",
+  "task_description": "Implement Phase 6 — Learned Policy (PyTorch): complete forge_core/learned_policy.py with YAML config, validation metrics, checkpointing, multi-run loading, obs_mode; complete scripts/forge_train.py with config merge, list-models, multi-run CLI; create config/training.yaml; add [ml] dep to pyproject.toml; add all new tests; update docs.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

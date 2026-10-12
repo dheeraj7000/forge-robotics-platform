@@ -1,0 +1,38 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "MEDIUM",
+      "title": "YAML-to-flat-dict key mapping is unspecified",
+      "location": "§1 (YAML Training Configuration), §5 (CLI Design), merge_training_config",
+      "description": "The YAML schema uses nested keys with different names than code/CLI (e.g., training.learning_rate vs lr, data.demo_episodes vs episodes). No flattening or renaming function is specified. merge_training_config does a simple dict update, so mismatched key names cause silent drops.",
+      "fix": "Add a _YAML_TO_FLAT mapping table and a _flatten_training_config(raw) -> dict helper in forge_train.py, called between load_training_config and merge_training_config."
+    },
+    {
+      "id": 2,
+      "severity": "MEDIUM",
+      "title": "model.* and data.* YAML config keys have no specified code path to consumers",
+      "location": "§1 (config schema), §5 (Main Flow step 6)",
+      "description": "model.hidden_layers/obs_dim/act_dim are validated but train_bc has no parameters for them and creates PolicyNetwork with defaults. data.target_object has no CLI flag and no extraction from merged config. The Main Flow step 6 says 'call train_bc with merged params' but doesn't show how model/data config reaches PolicyNetwork or collect_demos/from_run_dirs.",
+      "fix": "Option A (recommended): construct PolicyNetwork from model config in CLI and pass via network= param; pass target_object from config to collect_demos/from_run_dirs; update Main Flow steps 5-6 to show these data flows. Option B: remove model.* and data.target_object from validation and mark them as comments in YAML."
+    },
+    {
+      "id": 3,
+      "severity": "NIT",
+      "title": "Empty dataset guard listed in error table but not in train_bc narrative",
+      "location": "§2 (Validation Metrics) vs §10 (Error Handling)",
+      "description": "§10 lists 'Empty dataset -> ValueError' for train_bc but §2 does not mention adding this guard. Existing code has no such check.",
+      "fix": "Add 'if len(dataset) == 0: raise ValueError(\"Dataset is empty\")' to §2 input validation block."
+    },
+    {
+      "id": 4,
+      "severity": "NIT",
+      "title": "code_defaults dict in merge_training_config is incompletely specified",
+      "location": "§1 (CLI Integration)",
+      "description": "code_defaults is shown as {\"epochs\": 100, \"batch_size\": 64, \"lr\": 1e-3, ...} with a ... placeholder. The complete set of keys is ambiguous, especially for validation_split, checkpoint_interval, target_object, and model keys.",
+      "fix": "After resolving findings 1 and 2, list the complete CODE_DEFAULTS dict with all keys that participate in the merge."
+    }
+  ],
+  "reviewDoc": "\\\\wsl.localhost\\Ubuntu\\root\\forge\\.agents\\tasks\\forge-phase6-learned-policy/design-review.md"
+}

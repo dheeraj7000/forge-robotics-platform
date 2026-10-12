@@ -1,0 +1,27 @@
+{
+  "project_type": "Python robotics platform — MuJoCo simulation + ROS 2 optional",
+  "language": "Python 3.10+",
+  "build_system": "setuptools via pyproject.toml, no build step needed — pure Python",
+  "test_framework": "pytest (pytest>=7.0, pytest-timeout>=2.0 in dev deps)",
+  "build_command": "n/a (pure Python, no compilation)",
+  "test_command": "cd /root/forge && python3 -m pytest tests/ -v",
+  "verification_instructions": "Run python3 -m pytest tests/ -v from /root/forge. All tests must pass. Currently 111 tests passing.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "Running inside WSL Ubuntu at /root/forge. All rendering must be headless (EGL/OSMesa). forge_core has ZERO ROS dependency. The hard API contract test at tests/unit/test_perception.py must NOT be modified.",
+  "contribution_requirements": "No AGENTS.md or CONTRIBUTING.md found. Match existing code style: from __future__ import annotations, logging via module logger, dataclasses for data types, type hints throughout, docstrings on all public classes/methods.",
+  "key_patterns": "1) All forge_core modules use 'from __future__ import annotations' at top. 2) Logging via module-level logger = logging.getLogger(__name__). 3) Dataclasses for structured data (ObjectState, RobotState, TrajectoryBuffer). 4) Policy is ABC with reset/act/done interface. 5) Scripts use sys.path hack: _project_root = str(Path(__file__).resolve().parent.parent); sys.path.insert(0, _project_root). 6) Scripts use argparse. 7) runner.py orchestrates load→reset→loop→evaluate→save. 8) Tests use pytest fixtures, classes group related tests. 9) Lazy imports to avoid pulling in optional deps (see create_policy for learned policy).",
+  "relevant_files": [
+    "forge_core/simulation.py — ForgeSimulation, ObjectState, sim.model, sim.data, sim.sim_time, sim.get_object_states()",
+    "forge_core/policy.py — Policy ABC (reset/act/done/name), NullPolicy, ScriptedPickAndPlace",
+    "forge_core/runner.py — run_task(), run_task_by_name(), run_suite() signatures and loop structure",
+    "forge_core/recorder.py — TrajectoryBuffer dataclass, save_run() function",
+    "forge_core/config.py — PROJECT_ROOT used by recorder",
+    "tests/unit/test_perception.py — HARD API CONTRACT, do NOT modify",
+    "scripts/forge_eval.py — CLI pattern to follow for forge_perception.py",
+    "pyproject.toml — dependency list to update",
+    "docs/architecture.md — add Phase 5 section after Phase 4",
+    "docs/setup.md — add opencv dep + perception CLI docs",
+    "README.md — update status, structure, features, roadmap, test count"
+  ],
+  "directory_structure": "forge_core/ — core library (no ROS). scripts/ — CLI tools. tests/unit/ — pytest unit tests. tests/integration/ — acceptance tests. docs/ — architecture.md, setup.md. simulation/scenarios/ — YAML scenarios. tasks/ — YAML task definitions. faults/ — YAML fault profiles. runs/ — recorded run outputs."
+}
