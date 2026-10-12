@@ -7,13 +7,14 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 9 — Edge Deployment (ONNX, TensorRT)
+## Current Status: Phase 10 — Fleet & OTA
 
-Phases 1–9 are complete: simulation foundation, task evaluation,
+Phases 1–10 are complete: simulation foundation, task evaluation,
 telemetry/replay, chaos testing, camera-based perception, learned
 policy via behavioral cloning, ML infrastructure (experiment
 tracking + model registry), CI/CD with regression evaluation,
-and edge deployment (ONNX export, TensorRT optimization, edge inference runtime).
+edge deployment (ONNX export, TensorRT optimization, edge inference runtime),
+and fleet management with OTA updates.
 
 ### What's included
 
@@ -33,7 +34,8 @@ and edge deployment (ONNX export, TensorRT optimization, edge inference runtime)
 - **CI/CD pipelines** — GitHub Actions workflows for testing (Python 3.10/3.11 matrix) and regression evaluation
 - **Baseline management** — JSON-based baseline storage with CLI for create, check, compare, and update
 - **Edge deployment** — ONNX export from trained PyTorch policies, optional TensorRT optimization, edge inference runtime implementing Policy ABC, deployment packaging with metadata manifest
-- **272 automated tests**, all passing
+- **Fleet & OTA** — device registry with status/tags/groups, OTA update packages from deployment artifacts, rollout strategies (immediate, canary, staged), rollback support, per-device update history
+- **328 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
@@ -58,7 +60,7 @@ pip install -e '.[ml]'  # PyTorch for learned policies (optional)
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 272 tests, no ROS needed
+python3 -m pytest tests/ -v     # 328 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -165,6 +167,31 @@ python3 scripts/forge_deploy.py --benchmark --model models/bc_policy.onnx --n-it
 python3 scripts/forge_deploy.py --package --model models/bc_policy.onnx --output deploy/ --name bc_pick_red_cube
 ```
 
+### Fleet & OTA
+
+```bash
+# Register a device
+python3 scripts/forge_fleet.py devices register --id arm-01 --name "Panda Arm 01" --type panda
+
+# List devices
+python3 scripts/forge_fleet.py devices list
+
+# Update device status
+python3 scripts/forge_fleet.py devices status --id arm-01 --set online
+
+# Create an OTA update package
+python3 scripts/forge_fleet.py ota create-package --source-dir deploy/bc_policy/ --version 1.0.0 --model-name bc_pick
+
+# Deploy to a device group
+python3 scripts/forge_fleet.py ota deploy --package-id pkg_00001 --target-group production
+
+# Rollback a deployment
+python3 scripts/forge_fleet.py ota rollback --rollout-id rollout_00001 --force
+
+# Fleet overview dashboard
+python3 scripts/forge_fleet.py overview
+```
+
 ### ROS 2 (optional)
 
 ```bash
@@ -193,6 +220,8 @@ forge/
 │   ├── model_registry.py    # Model registry with stage lifecycle
 │   ├── regression.py        # Regression evaluation and baseline management
 │   ├── edge_deploy.py       # ONNX export, TensorRT optimization, edge inference
+│   ├── fleet.py             # Fleet device management (JSON-based)
+│   ├── ota.py               # OTA update system (packages, rollouts, history)
 │   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
@@ -218,10 +247,12 @@ forge/
 ├── experiments/             # Experiment tracking data (JSON per experiment)
 ├── registry/                # Model registry (registry.json)
 ├── baselines/               # Regression baselines (JSON per suite)
+├── fleet/                   # Fleet device registry (devices.json)
+├── ota/                     # OTA data (packages.json, rollouts.json, history/)
 ├── runs/                    # Recorded run outputs
 ├── models/                  # Saved model .pt files
 ├── tests/
-│   ├── unit/                # 271 unit tests
+│   ├── unit/                # 327 unit tests
 │   └── integration/         # Acceptance tests
 ├── scripts/
 │   ├── run_forge.py         # Single-process ROS 2 launcher
@@ -233,12 +264,14 @@ forge/
 │   ├── forge_train.py       # Training CLI
 │   ├── forge_registry.py   # Experiment & model registry CLI
 │   ├── forge_regression.py  # Regression testing CLI
-│   └── forge_deploy.py      # Edge deployment CLI
+│   ├── forge_deploy.py      # Edge deployment CLI
+│   └── forge_fleet.py       # Fleet & OTA management CLI
 ├── config/
 │   ├── default.yaml
 │   ├── training.yaml        # ML training configuration
 │   ├── regression.yaml      # Regression evaluation thresholds
-│   └── deploy.yaml          # Edge deployment configuration
+│   ├── deploy.yaml          # Edge deployment configuration
+│   └── fleet.yaml           # Fleet & OTA configuration
 ├── .github/workflows/       # CI/CD pipeline definitions
 │   ├── ci.yml               # Test workflow (Python matrix)
 │   └── regression.yml       # Regression evaluation workflow
@@ -271,7 +304,7 @@ forge/
 | 7 | Done | ML infrastructure (experiment tracking, model registry) |
 | 8 | Done | CI/CD (regression evaluation) |
 | 9 | Done | Edge deployment (ONNX, TensorRT) |
-| 10 | — | Fleet & OTA |
+| 10 | Done | Fleet & OTA |
 | 11 | — | Physical robot |
 
 ## Documentation

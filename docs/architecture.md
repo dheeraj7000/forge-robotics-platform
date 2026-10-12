@@ -6,12 +6,13 @@ Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
 It supports a lifecycle of develop → simulate → evaluate → record →
 detect failures → replay → improve.
 
-The current implementation covers Phases 1–9:
+The current implementation covers Phases 1–10:
 simulation, task evaluation, telemetry/replay, failure injection,
 camera-based perception, learned policy via behavioral cloning,
-ML infrastructure (experiment tracking + model registry), and
-CI/CD with regression evaluation, and
-edge deployment (ONNX export, TensorRT optimization).
+ML infrastructure (experiment tracking + model registry),
+CI/CD with regression evaluation,
+edge deployment (ONNX export, TensorRT optimization), and
+fleet management with OTA updates.
 
 ## System Diagram
 
@@ -716,6 +717,147 @@ python3 scripts/forge_deploy.py --package --model models/bc_policy.onnx --output
 python3 scripts/forge_deploy.py --optimize --model models/bc_policy.onnx --output models/bc_policy.trt --precision fp16
 python3 scripts/forge_deploy.py --export-registry --name bc_pick_red_cube --version 1 --output models/exported.onnx
 `
+
+---
+
+## Phase 10 — Fleet & OTA
+
+### Overview
+
+Phase 10 adds fleet device management and over-the-air (OTA) update
+capabilities. A fleet manager tracks registered devices with status,
+tags, and groups, while an OTA manager handles update package creation,
+rollout strategies (immediate, canary, staged), rollback, and
+per-device update history. All operations are local and simulated —
+no network calls or real device communication. Data is persisted as
+JSON on disk following the same patterns used by the model registry
+and experiment tracker.
+
+### Fleet Manager — `forge_core/fleet.py`
+
+Manages a registry of fleet devices with JSON persistence in
+`fleet/devices.json`.
+
+**DeviceInfo dataclass fields:**
+
+| Field | Content |
+|-------|---------|
+| `device_id` | Unique device identifier |
+| `name` | Human-readable name |
+| `device_type` | Device type (e.g. `panda`, `ur5`) |
+| `capabilities` | List of device capabilities (e.g. `gpu`, `camera`) |
+| `status` | Current status — one of `online`, `offline`, `updating`, `error` |
+| `tags` | User-defined labels |
+| `groups` | Group memberships |
+| `last_seen` | ISO 8601 timestamp of last status update |
+| `registered_at` | ISO 8601 registration timestamp |
+| `current_model` | Currently deployed model name |
+| `current_model_version` | Currently deployed model version |
+| `experiment_id` | Link to the experiment that produced the deployed model |
+| `metadata` | Arbitrary key-value metadata |
+
+**API:**
+
+| Method | Purpose |
+|--------|---------|
+| `register_device()` | Add a new device to the fleet |
+| `deregister_device()` | Remove a device from the fleet |
+| `get_device()` | Look up a device by ID |
+| `list_devices()` | List/filter devices by status, group, or tag |
+| `update_status()` | Update device status (validates against VALID_STATUSES) |
+| `add_tag()` / `remove_tag()` | Manage device tags |
+| `add_to_group()` / `remove_from_group()` | Manage device group memberships |
+| `update_device_model()` | Update the model currently deployed on a device |
+| `get_fleet_summary()` | Fleet-wide summary: counts by status, groups, tags |
+
+### OTA Update System — `forge_core/ota.py`
+
+Manages OTA update packages, rollout execution, rollback, and
+per-device update history. Persistence layout:
+
+```
+ota/
+├── packages.json          — update package registry
+├── rollouts.json          — rollout records
+└── history/
+    └── {device_id}.json   — per-device update history
+```
+
+**UpdatePackage dataclass fields:**
+
+| Field | Content |
+|-------|---------|
+| `package_id` | Sequential ID (`pkg_XXXXX`) |
+| `version` | Semver string (e.g. `1.0.0`) |
+| `model_name` | Model name |
+| `model_version` | Model version integer |
+| `source_package` | Path to source deployment package |
+| `requirements` | Required device capabilities |
+| `created_at` | ISO 8601 creation timestamp |
+| `metadata` | Arbitrary key-value metadata |
+
+**Rollout strategies:**
+
+| Strategy | Behaviour |
+|----------|-----------|
+| `immediate` | Deploy to all compatible target devices at once |
+| `canary` | Deploy to a percentage of target devices first |
+| `staged` | Deploy to all but require confirmation (stays in-progress) |
+
+**API:**
+
+| Method | Purpose |
+|--------|---------|
+| `create_update_package()` | Create a package from a deployment directory (reads manifest.yaml) |
+| `get_update_package()` | Look up a package by ID |
+| `list_update_packages()` | List all packages |
+| `check_compatibility()` | Check if a package is compatible with a device |
+| `create_rollout()` | Create a rollout targeting devices, a group, or a tag |
+| `execute_rollout()` | Simulate rollout execution with status updates |
+| `get_rollout()` / `list_rollouts()` | Query rollout records |
+| `rollback_rollout()` | Revert devices to their previous model version |
+| `get_device_history()` | Per-device update history |
+
+**Version utilities:**
+
+- `parse_version()` — splits semver `X.Y.Z` into an integer tuple
+- `compare_versions()` — compares two semver strings (-1, 0, 1)
+
+### Integration Points
+
+- **Phase 9 deployment packages**: `create_update_package()` reads
+  `manifest.yaml` from deployment packages created by
+  `DeploymentPackager` to auto-fill model metadata.
+- **Model registry**: OTA packages reference model names and versions
+  from the registry.
+- **Experiment tracking**: Devices track which experiment produced
+  their currently deployed model.
+
+### CLI — `scripts/forge_fleet.py`
+
+Management CLI with three command groups:
+
+```
+# Device management
+forge_fleet.py devices register --id arm-01 --name "Panda Arm 01" --type panda
+forge_fleet.py devices list [--status STATUS] [--group GROUP] [--tag TAG]
+forge_fleet.py devices status --id arm-01 --set online
+forge_fleet.py devices tag --id arm-01 --add gpu
+forge_fleet.py devices group --id arm-01 --add production
+forge_fleet.py devices deregister --id arm-01
+
+# OTA updates
+forge_fleet.py ota create-package --source-dir deploy/bc_policy/ --version 1.0.0 --model-name bc_pick
+forge_fleet.py ota deploy --package-id pkg_00001 --target-group production
+forge_fleet.py ota status --rollout-id rollout_00001
+forge_fleet.py ota rollback --rollout-id rollout_00001
+forge_fleet.py ota history --device-id arm-01
+forge_fleet.py ota list-packages
+forge_fleet.py ota list-rollouts [--status STATUS]
+
+# Fleet overview
+forge_fleet.py overview
+```
 
 ---
 ## Design Principles

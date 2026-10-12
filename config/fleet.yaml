@@ -1,0 +1,5 @@
+# Forge fleet & OTA configuration
+default_strategy: immediate
+canary_percentage: 10
+auto_rollback: true
+status_check_interval: 60

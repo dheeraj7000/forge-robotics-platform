@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Fleet & OTA CLI script and documentation updates. Creates scripts/forge_fleet.py with device management, OTA operations, and fleet overview subcommands, following the argparse+subparsers pattern from scripts/forge_registry.py. Updates docs/architecture.md with Phase 10 section, README.md with new status/features/structure/test count, and docs/setup.md with Fleet & OTA usage section. Independent of FEAT-001 only in the sense that it depends on FEAT-001 being complete first — it imports from forge_core/fleet.py and forge_core/ota.py.",
+  "status": "completed",
+  "steps": [
+    "Step 1 — Create scripts/forge_fleet.py: Follow the exact pattern from scripts/forge_registry.py (#!/usr/bin/env python3 shebang, docstring with usage examples, sys.path hack, argparse with subparsers, setup_logging, main). Three top-level subcommand groups: 'devices', 'ota', 'overview'. DEVICES subcommands: 'register' (--id, --name, --type required; --capabilities, --tags, --groups optional comma-separated; --metadata optional JSON string), 'deregister' (--id, --force), 'list' (--status, --group, --tag optional filters), 'status' (--id, --set required), 'tag' (--id required, --add or --remove), 'group' (--id required, --add or --remove). OTA subcommands: 'create-package' (--source-dir, --version, --model-name required; --model-version, --requirements optional), 'deploy' (--package-id required, --target-devices or --target-group or --target-tag, --strategy default immediate, --canary-percentage default 10), 'status' (--rollout-id), 'rollback' (--rollout-id, --force), 'history' (--device-id), 'list-packages', 'list-rollouts' (--status filter). OVERVIEW subcommand: no args, prints fleet summary dashboard with device counts by status, active rollouts, recent updates. Each subcommand handler function follows the cmd_xxx(args) pattern. Output formatting uses tabular print with column headers and separators matching forge_registry.py style.",
+    "Step 2 — Create config/fleet.yaml: Default fleet configuration YAML file following the pattern from config/deploy.yaml. Fields: default_strategy (immediate), canary_percentage (10), auto_rollback (true), status_check_interval (60). This file is optional — FleetManager and OTAManager work without it.",
+    "Step 3 — Update docs/architecture.md: Add a Phase 10 section after the Phase 9 section. Include: Overview paragraph, Fleet Manager subsection (FleetManager class, DeviceInfo dataclass, JSON persistence in fleet/devices.json, VALID_STATUSES, device groups/tags, fleet summary), OTA Update System subsection (OTAManager class, UpdatePackage/RolloutResult dataclasses, rollout strategies table, version management, persistence layout in ota/), Integration Points subsection (references to Phase 9 deployment packages, model registry, experiment tracking), CLI subsection (forge_fleet.py command reference). Follow the same markdown heading levels and table formatting used in Phases 7-9 sections.",
+    "Step 4 — Update README.md: Change 'Current Status' line to 'Phase 10 — Fleet & OTA'. Update the phase description paragraph to include fleet management and OTA updates. Add 'Fleet & OTA' bullet in 'What's included' list. Add 'Fleet & OTA' section under Quick Start with example CLI commands for device registration, listing, OTA package creation, deployment, and rollback. Update 'Project Structure' tree to add forge_core/fleet.py, forge_core/ota.py, scripts/forge_fleet.py, config/fleet.yaml, fleet/ directory, ota/ directory. Update Phase 10 row in Phase Roadmap table from '—' to 'Done'. Update test count from 272 to the actual new total (run pytest --co -q to count). Update all references to '272 tests' throughout the file.",
+    "Step 5 — Update docs/setup.md: Add a 'Fleet & OTA' section after the 'Edge Deployment' section covering device management commands (register, list, status, tag, group), OTA commands (create-package, deploy, status, rollback, history), and fleet overview. Update the test count in the 'Running Tests' section from 272 to actual new total. Follow the same bash code block formatting used in other sections."
+  ],
+  "acceptance_criteria": [
+    "scripts/forge_fleet.py exists with devices, ota, and overview subcommand groups",
+    "Running 'python3 scripts/forge_fleet.py --help' prints usage without errors",
+    "Running 'python3 scripts/forge_fleet.py devices --help' shows device subcommands",
+    "Running 'python3 scripts/forge_fleet.py ota --help' shows OTA subcommands",
+    "config/fleet.yaml exists with default fleet configuration",
+    "docs/architecture.md contains a Phase 10 section with Fleet Manager and OTA subsections",
+    "README.md references Phase 10 as current status, includes fleet/OTA in features list, and has updated test count",
+    "docs/setup.md contains Fleet & OTA usage section with CLI examples",
+    "Running 'python3 -m pytest tests/ -v' still passes all tests (no regressions from doc/CLI changes)"
+  ],
+  "verification": [
+    "python3 scripts/forge_fleet.py --help",
+    "python3 scripts/forge_fleet.py devices --help",
+    "python3 scripts/forge_fleet.py ota --help",
+    "python3 -m pytest tests/ -v"
+  ],
+  "blocked_reason": null,
+  "findings": "All 5 steps implemented. scripts/forge_fleet.py created with devices (register, deregister, list, status, tag, group), ota (create-package, deploy, status, rollback, history, list-packages, list-rollouts), and overview subcommand groups. config/fleet.yaml created with default fleet configuration. docs/architecture.md updated with Phase 10 section covering Fleet Manager, OTA Update System, Integration Points, and CLI reference. README.md updated: Phase 10 status, Fleet & OTA in features list, Quick Start section, Project Structure tree (fleet.py, ota.py, forge_fleet.py, fleet.yaml, fleet/, ota/), Phase Roadmap row set to Done, test count updated to 328. docs/setup.md updated with Fleet & OTA section (Device Management, OTA Updates, Fleet Overview) and test count updated to 328. All 328 tests passing (272 existing + 56 from FEAT-001), zero regressions."
+}

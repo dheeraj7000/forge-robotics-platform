@@ -375,6 +375,82 @@ python3 scripts/forge_deploy.py --optimize --model models/bc_policy.onnx --outpu
 # Export a model from the registry to ONNX
 python3 scripts/forge_deploy.py --export-registry --name bc_pick_red_cube --version 1 --output models/exported.onnx
 ```
+
+## Fleet & OTA
+
+Forge includes fleet device management and OTA (over-the-air) update
+capabilities. All operations are local and simulated — no network
+calls or real device communication.
+
+### Device Management
+
+```bash
+# Register a new device
+python3 scripts/forge_fleet.py devices register --id arm-01 --name "Panda Arm 01" --type panda
+
+# Register with capabilities, tags, and groups
+python3 scripts/forge_fleet.py devices register --id arm-02 --name "Panda Arm 02" --type panda \
+  --capabilities gpu,camera --tags production --groups factory-floor
+
+# List all devices (filter by status, group, or tag)
+python3 scripts/forge_fleet.py devices list
+python3 scripts/forge_fleet.py devices list --status online
+python3 scripts/forge_fleet.py devices list --group factory-floor
+
+# Update device status
+python3 scripts/forge_fleet.py devices status --id arm-01 --set online
+
+# Manage tags
+python3 scripts/forge_fleet.py devices tag --id arm-01 --add gpu
+python3 scripts/forge_fleet.py devices tag --id arm-01 --remove gpu
+
+# Manage groups
+python3 scripts/forge_fleet.py devices group --id arm-01 --add production
+python3 scripts/forge_fleet.py devices group --id arm-01 --remove production
+
+# Deregister a device
+python3 scripts/forge_fleet.py devices deregister --id arm-01 --force
+```
+
+### OTA Updates
+
+```bash
+# Create an OTA update package from a deployment directory
+python3 scripts/forge_fleet.py ota create-package --source-dir deploy/bc_policy/ --version 1.0.0 --model-name bc_pick
+
+# List available packages
+python3 scripts/forge_fleet.py ota list-packages
+
+# Deploy to specific devices, a group, or a tag
+python3 scripts/forge_fleet.py ota deploy --package-id pkg_00001 --target-devices arm-01,arm-02
+python3 scripts/forge_fleet.py ota deploy --package-id pkg_00001 --target-group production
+python3 scripts/forge_fleet.py ota deploy --package-id pkg_00001 --target-tag gpu
+
+# Deploy with a canary strategy (10% of devices first)
+python3 scripts/forge_fleet.py ota deploy --package-id pkg_00001 --target-group production \
+  --strategy canary --canary-percentage 20
+
+# Check rollout status
+python3 scripts/forge_fleet.py ota status --rollout-id rollout_00001
+
+# Roll back a deployment
+python3 scripts/forge_fleet.py ota rollback --rollout-id rollout_00001 --force
+
+# View device update history
+python3 scripts/forge_fleet.py ota history --device-id arm-01
+
+# List rollouts (filter by status)
+python3 scripts/forge_fleet.py ota list-rollouts
+python3 scripts/forge_fleet.py ota list-rollouts --status completed
+```
+
+### Fleet Overview
+
+```bash
+# Print fleet summary dashboard (device counts, active rollouts, packages)
+python3 scripts/forge_fleet.py overview
+```
+
 ## CI/CD
 
 Forge uses GitHub Actions for continuous integration and regression
@@ -417,7 +493,7 @@ git commit -m "chore: update regression baseline"
 ## Running Tests
 
 ```bash
-# All tests (272 tests, no ROS needed)
+# All tests (328 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module
