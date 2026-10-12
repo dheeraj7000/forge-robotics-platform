@@ -151,7 +151,7 @@ python3 scripts/forge_regression.py --compare baselines/old.json baselines/new.j
 
 ### Edge Deployment
 
-`ash
+```bash
 # Export a trained model to ONNX
 python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx
 
@@ -163,7 +163,7 @@ python3 scripts/forge_deploy.py --benchmark --model models/bc_policy.onnx --n-it
 
 # Package model for deployment
 python3 scripts/forge_deploy.py --package --model models/bc_policy.onnx --output deploy/ --name bc_pick_red_cube
-`
+```
 
 ### ROS 2 (optional)
 
@@ -221,7 +221,7 @@ forge/
 ├── runs/                    # Recorded run outputs
 ├── models/                  # Saved model .pt files
 ├── tests/
-│   ├── unit/                # 232 unit tests
+│   ├── unit/                # 270 unit tests
 │   └── integration/         # Acceptance tests
 ├── scripts/
 │   ├── run_forge.py         # Single-process ROS 2 launcher
