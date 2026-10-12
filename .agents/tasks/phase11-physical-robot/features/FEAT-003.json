@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-003",
+  "type": "docs",
+  "description": "Update all documentation and project metadata to reflect Phase 11 completion. Independent of FEAT-002's runtime code but should run after it to reflect final test count. Updates README.md (status, features, structure, roadmap, CLI section, test count), docs/architecture.md (Phase 11 section), and docs/setup.md (Physical Robot section with CLI usage).",
+  "status": "completed",
+  "steps": [
+    "Step 1 \u2014 Update docs/architecture.md: Add a '## Phase 11 \u2014 Physical Robot Support' section after the Phase 10 section and before 'Design Principles'. Include subsections:\n  - Overview paragraph: hardware abstraction bridging sim to real, safety system, sim-to-real transfer utilities.\n  - Hardware Abstraction Layer \u2014 forge_core/hardware.py: describe RobotInterface ABC, SimulatedRobot, RobotState/RobotCommand/RobotStatus dataclasses, run_policy_on_robot function. Include a table of RobotInterface methods.\n  - Safety System \u2014 forge_core/safety.py: describe SafetyMonitor wrapping RobotInterface, SafetyConfig loaded from YAML, SafetyViolation logging. Include table of SafetyMonitor methods.\n  - Sim-to-Real Transfer \u2014 forge_core/sim2real.py: describe domain randomization, trajectory comparison, calibration utilities.\n  - Configuration: mention config/robot.yaml and config/safety.yaml.\n  - CLI \u2014 scripts/forge_robot.py: list all subcommands with brief descriptions.\n  - Integration Points: how it connects to Policy, ForgeSimulation, Recorder.\n  Also update the opening paragraph and Overview to say 'Phases 1\u201311'.",
+    "Step 2 \u2014 Update docs/setup.md: Add a '## Physical Robot Support' section after the 'Fleet & OTA' section. Include CLI usage examples for all forge_robot.py subcommands: connect, run, safety-check, calibrate, compare-sim, status. Update the 'Running Tests' section test count to reflect the new total. Update any mention of phase count.",
+    "Step 3 \u2014 Update README.md:\n  - Change status heading from 'Phase 10 \u2014 Fleet & OTA' to 'Phase 11 \u2014 All Phases Complete'.\n  - Update the status paragraph to say 'Phases 1\u201311 are complete' and add 'physical robot support (hardware abstraction, safety system, sim-to-real transfer)' to the feature list.\n  - Add 'Physical robot support' bullet to the 'What's included' list: hardware abstraction layer (RobotInterface ABC, SimulatedRobot), safety monitoring (joint/velocity/workspace limits), sim-to-real transfer (domain randomization, trajectory comparison, calibration).\n  - Update 'What's NOT included' \u2014 remove 'physical robot' since we now have the software infrastructure.\n  - Add Physical Robot section to Quick Start with forge_robot.py CLI examples.\n  - Update Project Structure: add hardware.py, safety.py, sim2real.py to forge_core/ listing, add forge_robot.py to scripts/, add robot.yaml and safety.yaml to config/.\n  - Update Phase Roadmap table: Phase 11 status to 'Done', capability 'Physical robot support'.\n  - Update test count from '328 automated tests' to the actual final count.\n  - Update 'Verify' section test count.",
+    "Step 4 \u2014 Run the full test suite and record the actual final test count. Update all doc references to match the real number."
+  ],
+  "acceptance_criteria": [
+    "docs/architecture.md has a Phase 11 section with hardware abstraction, safety, sim-to-real subsections",
+    "docs/setup.md has a Physical Robot Support section with CLI examples",
+    "README.md status is 'Phase 11 \u2014 All Phases Complete' with updated feature list, structure, roadmap, and test count",
+    "Phase roadmap in README.md shows all 11 phases as Done",
+    "All test count references match the actual pytest output",
+    "All 328+ tests still pass"
+  ],
+  "verification": [
+    "Run `python3 -m pytest tests/ -v` \u2014 all tests pass, note final count",
+    "Run `grep -c 'Phase 11' docs/architecture.md` \u2014 returns at least 1",
+    "Run `grep 'All Phases Complete' README.md` \u2014 returns a match",
+    "Run `grep 'Done.*Physical robot' README.md` \u2014 returns a match"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

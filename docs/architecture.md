@@ -6,13 +6,14 @@ Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
 It supports a lifecycle of develop → simulate → evaluate → record →
 detect failures → replay → improve.
 
-The current implementation covers Phases 1–10:
+The current implementation covers Phases 1–11:
 simulation, task evaluation, telemetry/replay, failure injection,
 camera-based perception, learned policy via behavioral cloning,
 ML infrastructure (experiment tracking + model registry),
 CI/CD with regression evaluation,
-edge deployment (ONNX export, TensorRT optimization), and
-fleet management with OTA updates.
+edge deployment (ONNX export, TensorRT optimization),
+fleet management with OTA updates, and
+physical robot support (hardware abstraction, safety system, sim-to-real transfer).
 
 ## System Diagram
 
@@ -858,6 +859,117 @@ forge_fleet.py ota list-rollouts [--status STATUS]
 # Fleet overview
 forge_fleet.py overview
 ```
+
+---
+## Phase 11 — Physical Robot Support
+
+### Overview
+
+Phase 11 bridges the gap between simulation and physical hardware.
+A hardware abstraction layer provides a uniform `RobotInterface` ABC so
+policies can run on either a simulated or a real robot. A safety system
+wraps the interface to enforce joint, velocity, and workspace limits
+before any command reaches the actuators. Sim-to-real transfer utilities
+handle domain randomization, trajectory comparison, and calibration to
+close the reality gap.
+
+### Hardware Abstraction Layer — `forge_core/hardware.py`
+
+Defines the robot communication interface and a simulation-backed
+implementation.
+
+**Dataclasses:**
+
+| Dataclass | Fields |
+|-----------|--------|
+| `RobotState` | `joint_positions`, `joint_velocities`, `ee_position`, `ee_orientation`, `gripper_state`, `timestamp` |
+| `RobotCommand` | `joint_targets`, `gripper_command` (0=open, 255=closed), `timestamp` |
+| `RobotStatus` | `connected`, `status` (idle/running/error/e_stopped), `error_message`, `uptime`, `last_heartbeat` |
+
+**RobotInterface ABC methods:**
+
+| Method | Purpose |
+|--------|---------|
+| `connect()` | Establish connection to the robot |
+| `disconnect()` | Cleanly shut down the connection |
+| `get_state()` | Return current `RobotState` |
+| `send_command(cmd)` | Send a `RobotCommand` to the robot |
+| `emergency_stop()` | Trigger an immediate emergency stop |
+| `get_status()` | Return current `RobotStatus` |
+
+**SimulatedRobot** implements `RobotInterface` backed by
+`ForgeSimulation`. It translates `RobotCommand` into simulation
+joint targets and maps simulation state back to `RobotState`.
+
+**`run_policy_on_robot(robot, policy, ...)`** executes a `Policy` on
+any `RobotInterface` implementation with optional recording via
+`TrajectoryBuffer` and safety monitoring.
+
+### Safety System — `forge_core/safety.py`
+
+Wraps a `RobotInterface` to enforce configurable safety limits.
+
+**SafetyConfig** is loaded from `config/safety.yaml` via
+`load_safety_config()`. It defines joint position limits, velocity
+limits, workspace boundaries, and maximum gripper force.
+
+**SafetyViolation** records a single violation with type
+(`joint_limit`, `velocity_limit`, `workspace_boundary`), message,
+joint index, value, and limit.
+
+**SafetyMonitor methods:**
+
+| Method | Purpose |
+|--------|---------|
+| `check_command(cmd, state)` | Return list of `SafetyViolation` for a command |
+| `is_safe(cmd, state)` | Boolean shorthand — no violations |
+| `safe_send_command(cmd)` | Check then send; blocks unsafe commands |
+| `emergency_stop()` | Delegate to wrapped robot's emergency stop |
+| `get_violations_log()` | Return all recorded violations as dicts |
+
+### Sim-to-Real Transfer — `forge_core/sim2real.py`
+
+Utilities to narrow the sim-to-real gap.
+
+- **Domain randomization** — `DomainRandomizationConfig` +
+  `apply_domain_randomization(sim, config)` randomizes gravity,
+  friction, mass, and sensor/actuator noise on a `ForgeSimulation`.
+- **Trajectory comparison** — `compare_trajectories(sim, real)`
+  computes position/velocity/EE RMSE, max errors, and correlation
+  between simulated and real trajectories.
+- **Calibration** — `calibrate_joint_offsets()` computes per-joint
+  offsets; `calibrate_workspace()` computes a workspace translation
+  transform via centroid alignment.
+
+Configuration is loaded from `config/robot.yaml` via
+`load_sim2real_config()`.
+
+### Configuration
+
+| File | Contents |
+|------|----------|
+| `config/robot.yaml` | Robot connection type, scenario, sim-to-real domain randomization parameters |
+| `config/safety.yaml` | Joint limits, velocity limits, workspace boundaries, max gripper force |
+
+### CLI — `scripts/forge_robot.py`
+
+| Subcommand | Purpose |
+|------------|---------|
+| `connect` | Connect to a robot, print status, disconnect |
+| `run` | Run a policy on the robot with optional recording and safety monitoring |
+| `safety-check` | Run a safety check against current configuration |
+| `calibrate` | Compute joint offsets between simulated and real positions |
+| `compare-sim` | Compare simulated and real trajectories |
+| `status` | Print current robot connection status |
+
+### Integration Points
+
+- **Policy** — `run_policy_on_robot` accepts any `Policy` implementation
+  (scripted or learned) via the standard `reset/act/done` interface.
+- **ForgeSimulation** — `SimulatedRobot` wraps `ForgeSimulation` for
+  testing without hardware.
+- **Recorder** — `run_policy_on_robot` accepts a `TrajectoryBuffer` to
+  record runs in the same format used by the existing runner.
 
 ---
 ## Design Principles

@@ -7,14 +7,15 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 10 — Fleet & OTA
+## Current Status: Phase 11 — All Phases Complete
 
-Phases 1–10 are complete: simulation foundation, task evaluation,
+Phases 1–11 are complete: simulation foundation, task evaluation,
 telemetry/replay, chaos testing, camera-based perception, learned
 policy via behavioral cloning, ML infrastructure (experiment
 tracking + model registry), CI/CD with regression evaluation,
 edge deployment (ONNX export, TensorRT optimization, edge inference runtime),
-and fleet management with OTA updates.
+fleet management with OTA updates, and
+physical robot support (hardware abstraction, safety system, sim-to-real transfer).
 
 ### What's included
 
@@ -35,11 +36,12 @@ and fleet management with OTA updates.
 - **Baseline management** — JSON-based baseline storage with CLI for create, check, compare, and update
 - **Edge deployment** — ONNX export from trained PyTorch policies, optional TensorRT optimization, edge inference runtime implementing Policy ABC, deployment packaging with metadata manifest
 - **Fleet & OTA** — device registry with status/tags/groups, OTA update packages from deployment artifacts, rollout strategies (immediate, canary, staged), rollback support, per-device update history
-- **328 automated tests**, all passing
+- **Physical robot support** — hardware abstraction layer (RobotInterface ABC, SimulatedRobot), safety monitoring (joint/velocity/workspace limits), sim-to-real transfer (domain randomization, trajectory comparison, calibration)
+- **384 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
-No LLM, VLM, cloud infrastructure, or physical robot.
+No LLM, VLM, or cloud infrastructure.
 Those belong to later phases.
 
 ## Quick Start
@@ -60,7 +62,7 @@ pip install -e '.[ml]'  # PyTorch for learned policies (optional)
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 328 tests, no ROS needed
+python3 -m pytest tests/ -v     # 384 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -192,6 +194,22 @@ python3 scripts/forge_fleet.py ota rollback --rollout-id rollout_00001 --force
 python3 scripts/forge_fleet.py overview
 ```
 
+### Physical Robot
+```bash
+# Connect to a simulated robot
+python3 scripts/forge_robot.py connect --type simulated --scenario basic_workspace
+# Run a policy on the robot
+python3 scripts/forge_robot.py run --policy null --task pick_and_place_basic
+# Safety check
+python3 scripts/forge_robot.py safety-check
+# Calibrate joint offsets
+python3 scripts/forge_robot.py calibrate
+# Compare sim vs real trajectories
+python3 scripts/forge_robot.py compare-sim
+# Robot status
+python3 scripts/forge_robot.py status
+```
+
 ### ROS 2 (optional)
 
 ```bash
@@ -222,6 +240,9 @@ forge/
 │   ├── edge_deploy.py       # ONNX export, TensorRT optimization, edge inference
 │   ├── fleet.py             # Fleet device management (JSON-based)
 │   ├── ota.py               # OTA update system (packages, rollouts, history)
+│   ├── hardware.py          # Hardware abstraction layer (RobotInterface ABC)
+│   ├── safety.py            # Safety monitoring system
+│   ├── sim2real.py          # Sim-to-real transfer utilities
 │   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
@@ -252,7 +273,7 @@ forge/
 ├── runs/                    # Recorded run outputs
 ├── models/                  # Saved model .pt files
 ├── tests/
-│   ├── unit/                # 327 unit tests
+│   ├── unit/                # 384 unit tests
 │   └── integration/         # Acceptance tests
 ├── scripts/
 │   ├── run_forge.py         # Single-process ROS 2 launcher
@@ -265,13 +286,16 @@ forge/
 │   ├── forge_registry.py   # Experiment & model registry CLI
 │   ├── forge_regression.py  # Regression testing CLI
 │   ├── forge_deploy.py      # Edge deployment CLI
-│   └── forge_fleet.py       # Fleet & OTA management CLI
+│   ├── forge_fleet.py       # Fleet & OTA management CLI
+│   └── forge_robot.py       # Physical robot CLI
 ├── config/
 │   ├── default.yaml
 │   ├── training.yaml        # ML training configuration
 │   ├── regression.yaml      # Regression evaluation thresholds
 │   ├── deploy.yaml          # Edge deployment configuration
-│   └── fleet.yaml           # Fleet & OTA configuration
+│   ├── fleet.yaml           # Fleet & OTA configuration
+│   ├── robot.yaml           # Robot connection & sim-to-real configuration
+│   └── safety.yaml          # Safety limits configuration
 ├── .github/workflows/       # CI/CD pipeline definitions
 │   ├── ci.yml               # Test workflow (Python matrix)
 │   └── regression.yml       # Regression evaluation workflow
@@ -305,7 +329,7 @@ forge/
 | 8 | Done | CI/CD (regression evaluation) |
 | 9 | Done | Edge deployment (ONNX, TensorRT) |
 | 10 | Done | Fleet & OTA |
-| 11 | — | Physical robot |
+| 11 | Done | Physical robot support |
 
 ## Documentation
 

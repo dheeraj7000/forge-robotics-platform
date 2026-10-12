@@ -451,6 +451,45 @@ python3 scripts/forge_fleet.py ota list-rollouts --status completed
 python3 scripts/forge_fleet.py overview
 ```
 
+## Physical Robot Support
+
+Forge includes a hardware abstraction layer, safety monitoring system,
+and sim-to-real transfer utilities for bridging simulation to physical
+hardware.
+
+### Robot Connection
+```bash
+# Connect to a simulated robot and print status
+python3 scripts/forge_robot.py connect --type simulated --scenario basic_workspace
+
+# Print current connection status
+python3 scripts/forge_robot.py status
+```
+
+### Running Policies on Robot
+```bash
+# Run a null policy (no-op) on the simulated robot
+python3 scripts/forge_robot.py run --policy null --task pick_and_place_basic
+
+# Run with safety monitoring and recording
+python3 scripts/forge_robot.py run --policy null --task pick_and_place_basic --safe --record
+```
+
+### Safety Checking
+```bash
+# Run a safety check against the current configuration
+python3 scripts/forge_robot.py safety-check
+```
+
+### Calibration & Sim-to-Real
+```bash
+# Compute joint offsets between sim and real positions
+python3 scripts/forge_robot.py calibrate
+
+# Compare simulated vs real trajectories
+python3 scripts/forge_robot.py compare-sim
+```
+
 ## CI/CD
 
 Forge uses GitHub Actions for continuous integration and regression
@@ -493,7 +532,7 @@ git commit -m "chore: update regression baseline"
 ## Running Tests
 
 ```bash
-# All tests (328 tests, no ROS needed)
+# All tests (384 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module
