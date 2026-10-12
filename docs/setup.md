@@ -72,10 +72,10 @@ All other Forge features work without it.
 
 To use edge deployment features (Phase 9), install the edge extras:
 
-\\ash
+```bash
 pip install -e '.[edge]'
-\
-This adds \onnx\ and \onnxruntime\. TensorRT must be installed
+```
+This adds `onnx` and `onnxruntime`. TensorRT must be installed
 separately from [NVIDIA's documentation](https://developer.nvidia.com/tensorrt)
 if GPU-accelerated inference is needed.
 
@@ -356,7 +356,7 @@ beyond tolerance).
 Forge can export trained PyTorch policies to ONNX for edge deployment,
 with optional TensorRT optimization.
 
-\\ash
+```bash
 # Export a trained model to ONNX
 python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx
 
@@ -374,7 +374,7 @@ python3 scripts/forge_deploy.py --optimize --model models/bc_policy.onnx --outpu
 
 # Export a model from the registry to ONNX
 python3 scripts/forge_deploy.py --export-registry --name bc_pick_red_cube --version 1 --output models/exported.onnx
-\
+```
 ## CI/CD
 
 Forge uses GitHub Actions for continuous integration and regression
@@ -417,7 +417,7 @@ git commit -m "chore: update regression baseline"
 ## Running Tests
 
 ```bash
-# All tests (271 tests, no ROS needed)
+# All tests (272 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module

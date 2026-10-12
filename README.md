@@ -33,7 +33,7 @@ and edge deployment (ONNX export, TensorRT optimization, edge inference runtime)
 - **CI/CD pipelines** — GitHub Actions workflows for testing (Python 3.10/3.11 matrix) and regression evaluation
 - **Baseline management** — JSON-based baseline storage with CLI for create, check, compare, and update
 - **Edge deployment** — ONNX export from trained PyTorch policies, optional TensorRT optimization, edge inference runtime implementing Policy ABC, deployment packaging with metadata manifest
-- **271 automated tests**, all passing
+- **272 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
@@ -58,7 +58,7 @@ pip install -e '.[ml]'  # PyTorch for learned policies (optional)
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 271 tests, no ROS needed
+python3 -m pytest tests/ -v     # 272 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -221,7 +221,7 @@ forge/
 ├── runs/                    # Recorded run outputs
 ├── models/                  # Saved model .pt files
 ├── tests/
-│   ├── unit/                # 270 unit tests
+│   ├── unit/                # 271 unit tests
 │   └── integration/         # Acceptance tests
 ├── scripts/
 │   ├── run_forge.py         # Single-process ROS 2 launcher

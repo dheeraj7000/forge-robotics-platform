@@ -112,6 +112,9 @@ class TestTensorRTConfig:
         config = TensorRTConfig(precision="fp16")
         assert config.precision == "fp16"
 
+    def test_invalid_precision_raises(self):
+        with pytest.raises(ValueError, match="precision must be"):
+            TensorRTConfig(precision="int8")
 
 # ── TestOnnxExporter ────────────────────────────────────────
 
