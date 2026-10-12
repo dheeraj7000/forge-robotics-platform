@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Forge — Robotics Reliability &amp; Deployment Platform. Develop, evaluate, debug, and deploy ML-powered robotic systems.">
+  <title>Forge — Robotics Reliability &amp; Deployment Platform</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+  <!-- Prism.js — syntax highlighting (Tomorrow Night theme) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+
+  <!-- Site stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════ Navigation ═══════════════════════ -->
+  <nav class="nav" aria-label="Main navigation">
+    <div class="container">
+      <a href="#hero" class="nav-logo"><span>⚙</span> Forge</a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#quickstart">Quick Start</a></li>
+        <li><a href="#cli">CLI</a></li>
+        <li><a href="https://github.com/dheeraj7000/forge-robotics-platform" target="_blank" rel="noopener noreferrer" class="github-link">GitHub ↗</a></li>
+      </ul>
+      <button class="hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════ Section 1 — Hero ═══════════════════════ -->
+  <section id="hero" class="hero">
+    <div class="container">
+      <div class="hero-content fade-in">
+        <h1>Forge</h1>
+        <p class="tagline">Robotics Reliability &amp; Deployment Platform</p>
+        <p class="description">
+          A robotics reliability platform for developing, evaluating, debugging, and
+          deploying ML-powered robotic systems. What happens after a model or robot
+          policy leaves the notebook?
+        </p>
+        <div class="hero-buttons">
+          <a href="https://github.com/dheeraj7000/forge-robotics-platform" target="_blank" rel="noopener noreferrer" class="btn btn-primary">View on GitHub</a>
+          <a href="#quickstart" class="btn btn-secondary">Quick Start</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ Section 2 — Features ═══════════════════════ -->
+  <section id="features">
+    <div class="container">
+      <h2 class="section-heading fade-in">Core Capabilities</h2>
+      <p class="section-subheading fade-in">Everything you need to take a robotic system from simulation to production.</p>
+
+      <div class="features-grid">
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">🤖</span>
+          <h3>Simulation</h3>
+          <p>MuJoCo Menagerie Franka Panda with mesh collision and accurate kinematics.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">📊</span>
+          <h3>Task Evaluation</h3>
+          <p>YAML task definitions with measurable success criteria and structured results.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">📹</span>
+          <h3>Telemetry &amp; Replay</h3>
+          <p>Per-cycle trajectory recording with numpy storage and step-level replay.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">💥</span>
+          <h3>Chaos Testing</h3>
+          <p>6 fault types, composable YAML profiles, baseline comparison mode.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">📷</span>
+          <h3>Perception</h3>
+          <p>MuJoCo offscreen camera rendering, OpenCV HSV color detection, depth-based 3D estimation.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">🧠</span>
+          <h3>ML Training</h3>
+          <p>PyTorch behavioral cloning from scripted demonstrations, configurable training pipeline.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">🔬</span>
+          <h3>Experiment Tracking</h3>
+          <p>File-based experiment tracker with config, metrics, git commit, and tags (zero external deps).</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">📦</span>
+          <h3>Model Registry</h3>
+          <p>Versioned models with stage lifecycle (training → validated → production → archived).</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">✅</span>
+          <h3>Regression Testing</h3>
+          <p>Automated baseline comparison to detect performance degradations.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">🚀</span>
+          <h3>Edge Deployment</h3>
+          <p>ONNX export, optional TensorRT optimization, edge inference runtime.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">🌐</span>
+          <h3>Fleet &amp; OTA</h3>
+          <p>Device registry, OTA update packages, rollout strategies (immediate, canary, staged).</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">🔧</span>
+          <h3>Physical Robot</h3>
+          <p>Hardware abstraction layer, safety monitoring, sim-to-real transfer.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ Section 3 — Phase Roadmap ═══════════════════════ -->
+  <section id="roadmap">
+    <div class="container">
+      <h2 class="section-heading fade-in">Development Roadmap</h2>
+      <p class="section-subheading fade-in">All 11 phases complete — from simulation to physical hardware.</p>
+
+      <div class="timeline">
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">1</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Simulation foundation</h3>
+            <p>MuJoCo Menagerie Franka Panda simulation engine with scene management and state queries.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">2</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Task execution &amp; evaluation</h3>
+            <p>YAML task specs, policy interface, success criteria evaluation, and the Runner orchestrator.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">3</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Telemetry &amp; replay</h3>
+            <p>Per-cycle trajectory recording, numpy-based storage, and run replay at any timestep.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">4</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Failure injection / chaos testing</h3>
+            <p>6 fault types, composable YAML profiles, and baseline comparison mode.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">5</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Perception (camera + OpenCV)</h3>
+            <p>MuJoCo offscreen rendering, HSV color detection, and depth-based 3D position estimation.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">6</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Learned policy (PyTorch)</h3>
+            <p>MLP behavioral cloning from scripted demonstrations with configurable training pipeline.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">7</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>ML infrastructure (experiment tracking, model registry)</h3>
+            <p>File-based experiment tracker and versioned model registry with stage lifecycle.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">8</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>CI/CD (regression evaluation)</h3>
+            <p>Automated baseline comparison and GitHub Actions workflows for continuous quality gates.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">9</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Edge deployment (ONNX, TensorRT)</h3>
+            <p>ONNX export, optional TensorRT optimization, edge inference runtime, and deployment packaging.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">10</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Fleet &amp; OTA</h3>
+            <p>Device registry, OTA update packages, rollout strategies, rollback, and per-device history.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item fade-in">
+          <div class="timeline-badge">11</div>
+          <div class="timeline-content">
+            <span class="status">✓ Complete</span>
+            <h3>Physical robot support</h3>
+            <p>Hardware abstraction layer, safety monitoring, and sim-to-real transfer utilities.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ Section 4 — Architecture ═══════════════════════ -->
+  <section id="architecture">
+    <div class="container">
+      <h2 class="section-heading fade-in">System Architecture</h2>
+      <p class="section-subheading fade-in">How a task flows through the Forge pipeline.</p>
+
+      <div class="architecture-diagram fade-in">
+<pre>
+  Task YAML + Fault Profile
+        │
+        ▼
+  ┌───────────┐     ┌──────────┐
+  │  Runner    │────▶│ Recorder │──▶ runs/run_XXXXX/
+  │            │     └──────────┘      metadata.json
+  │ load       │                       trajectory.npz
+  │ reset      │     ┌──────────┐      config.yaml
+  │ inject     │────▶│ Faults   │      result.json
+  │ loop:      │     └──────────┘
+  │  policy    │
+  │  sim.step  │     ┌──────────┐
+  │ evaluate   │────▶│Evaluator │──▶ EvalResult
+  └─────┬──────┘     └──────────┘
+        │
+        ▼
+  ForgeSimulation (MuJoCo)
+  ┌─────────────────────────────┐
+  │ Menagerie Panda + Table     │
+  │ + Objects (freejoint)       │
+  │                             │
+  │ step / reset / query state  │
+  └─────────────────────────────┘
+</pre>
+      </div>
+
+      <p class="architecture-description fade-in">
+        The Runner orchestrates the full lifecycle: load scenario, reset simulation,
+        inject faults, run the policy loop, and evaluate results. Recorded runs
+        capture every joint state, action, and evaluation result for replay and
+        regression testing.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ Section 5 — Quick Start ═══════════════════════ -->
+  <section id="quickstart">
+    <div class="container">
+      <h2 class="section-heading fade-in">Quick Start</h2>
+      <p class="section-subheading fade-in">Get up and running in minutes. No ROS required.</p>
+
+      <div class="quickstart-steps">
+
+        <div class="quickstart-step fade-in">
+          <h3>Install</h3>
+          <div class="code-block">
+            <div class="code-block-header">bash</div>
+            <pre><code class="language-bash">pip install mujoco mujoco_menagerie numpy PyYAML opencv-python-headless pytest
+pip install -e '.[ml]'  # PyTorch for learned policies (optional)</code></pre>
+          </div>
+        </div>
+
+        <div class="quickstart-step fade-in">
+          <h3>Run Tests</h3>
+          <div class="code-block">
+            <div class="code-block-header">bash</div>
+            <pre><code class="language-bash">python3 -m pytest tests/ -v</code></pre>
+          </div>
+          <p class="note">384 tests, no ROS needed</p>
+        </div>
+
+        <div class="quickstart-step fade-in">
+          <h3>Evaluate a Task</h3>
+          <div class="code-block">
+            <div class="code-block-header">bash</div>
+            <pre><code class="language-bash">python3 scripts/forge_eval.py --task pick_red_cube</code></pre>
+          </div>
+        </div>
+
+        <div class="quickstart-step fade-in">
+          <h3>Train a Policy</h3>
+          <div class="code-block">
+            <div class="code-block-header">bash</div>
+            <pre><code class="language-bash">python3 scripts/forge_train.py --task pick_red_cube --episodes 5</code></pre>
+          </div>
+        </div>
+
+        <div class="quickstart-step fade-in">
+          <h3>Deploy to Edge</h3>
+          <div class="code-block">
+            <div class="code-block-header">bash</div>
+            <pre><code class="language-bash">python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx</code></pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ Section 6 — CLI Tools ═══════════════════════ -->
+  <section id="cli">
+    <div class="container">
+      <h2 class="section-heading fade-in">CLI Tools</h2>
+      <p class="section-subheading fade-in">A dedicated CLI for every stage of the robotics workflow.</p>
+
+      <div class="cli-grid">
+
+        <div class="cli-card fade-in">
+          <h3>forge_eval</h3>
+          <p class="cli-desc">Task evaluation</p>
+          <pre><code>python3 scripts/forge_eval.py --task pick_red_cube
+python3 scripts/forge_eval.py --suite manipulation-v1</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_chaos</h3>
+          <p class="cli-desc">Chaos testing</p>
+          <pre><code>python3 scripts/forge_chaos.py --task pick_red_cube --fault object_moved
+python3 scripts/forge_chaos.py --task pick_red_cube --fault cascading --compare</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_perception</h3>
+          <p class="cli-desc">Perception pipeline</p>
+          <pre><code>python3 scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o detections.png</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_train</h3>
+          <p class="cli-desc">ML training</p>
+          <pre><code>python3 scripts/forge_train.py --task pick_red_cube --episodes 5
+python3 scripts/forge_train.py --list-models</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_registry</h3>
+          <p class="cli-desc">Experiment &amp; model registry</p>
+          <pre><code>python3 scripts/forge_registry.py experiments list
+python3 scripts/forge_registry.py models promote bc_pick_red_cube --version 1 --stage validated</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_regression</h3>
+          <p class="cli-desc">Regression testing</p>
+          <pre><code>python3 scripts/forge_regression.py --check --suite manipulation-v1
+python3 scripts/forge_regression.py --create-baseline --suite manipulation-v1</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_deploy</h3>
+          <p class="cli-desc">Edge deployment</p>
+          <pre><code>python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx
+python3 scripts/forge_deploy.py --benchmark --model models/bc_policy.onnx</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_fleet</h3>
+          <p class="cli-desc">Fleet &amp; OTA management</p>
+          <pre><code>python3 scripts/forge_fleet.py devices register --id arm-01 --name "Panda Arm 01" --type panda
+python3 scripts/forge_fleet.py ota deploy --package-id pkg_00001 --target-group production</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_robot</h3>
+          <p class="cli-desc">Physical robot</p>
+          <pre><code>python3 scripts/forge_robot.py connect --type simulated --scenario basic_workspace
+python3 scripts/forge_robot.py safety-check</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_doctor</h3>
+          <p class="cli-desc">Health check</p>
+          <pre><code>python3 scripts/forge_doctor.py</code></pre>
+        </div>
+
+        <div class="cli-card fade-in">
+          <h3>forge_replay</h3>
+          <p class="cli-desc">Run replay</p>
+          <pre><code>python3 scripts/forge_replay.py --list
+python3 scripts/forge_replay.py runs/run_00001/ --step 50</code></pre>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ Section 7 — Stats ═══════════════════════ -->
+  <section id="stats">
+    <div class="container">
+      <h2 class="section-heading fade-in">By the Numbers</h2>
+      <p class="section-subheading fade-in">Verified against the actual repository.</p>
+
+      <div class="stats-grid fade-in">
+        <div class="stat-card">
+          <div class="stat-number">384</div>
+          <div class="stat-label">Automated Tests</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">11</div>
+          <div class="stat-label">Phases Complete</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">21</div>
+          <div class="stat-label">Core Modules</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">12</div>
+          <div class="stat-label">CLI Tools</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">6</div>
+          <div class="stat-label">Fault Types</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ Section 8 — Footer ═══════════════════════ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <h3><span>⚙</span> Forge</h3>
+          <p>Robotics Reliability &amp; Deployment Platform. Built for engineers who ship robots.</p>
+        </div>
+        <div class="footer-links">
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/dheeraj7000/forge-robotics-platform" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+            <li><a href="https://github.com/dheeraj7000/forge-robotics-platform/blob/main/docs/architecture.md" target="_blank" rel="noopener noreferrer">Architecture</a></li>
+            <li><a href="https://github.com/dheeraj7000/forge-robotics-platform/blob/main/docs/setup.md" target="_blank" rel="noopener noreferrer">Setup Guide</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+            <li><a href="#quickstart">Quick Start</a></li>
+            <li><a href="#cli">CLI Tools</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>MIT License</span>
+        <span>Built with Forge</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Prism.js — syntax highlighting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+  <!-- Site interactions -->
+  <script src="script.js"></script>
+
+</body>
+</html>
