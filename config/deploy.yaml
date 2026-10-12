@@ -1,0 +1,12 @@
+# Forge edge deployment configuration
+opset_version: 17
+dynamic_batch: false
+
+tensorrt:
+  precision: fp32
+  max_batch_size: 1
+  workspace_size_mb: 256
+
+package:
+  include_tensorrt: false
+  compress: false

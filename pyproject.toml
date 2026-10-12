@@ -25,10 +25,15 @@ dev = [
 ml = [
     "torch>=2.0",
 ]
+edge = [
+    "onnx>=1.14.0",
+    "onnxruntime>=1.15.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "unit: unit tests (no ROS required)",
     "integration: integration tests (ROS required)",
+    "edge_deploy: edge deployment tests (onnx/onnxruntime required)",
 ]
