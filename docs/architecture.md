@@ -6,11 +6,12 @@ Forge is a robotics reliability platform built on ROS 2 and MuJoCo.
 It supports a lifecycle of develop → simulate → evaluate → record →
 detect failures → replay → improve.
 
-The current implementation covers Phases 1–8:
+The current implementation covers Phases 1–9:
 simulation, task evaluation, telemetry/replay, failure injection,
 camera-based perception, learned policy via behavioral cloning,
 ML infrastructure (experiment tracking + model registry), and
-CI/CD with regression evaluation.
+CI/CD with regression evaluation, and
+edge deployment (ONNX export, TensorRT optimization).
 
 ## System Diagram
 
@@ -622,6 +623,101 @@ The regression module connects to existing components:
 
 ---
 
+
+## Phase 9 — Edge Deployment (ONNX / TensorRT)
+
+### Overview
+
+Phase 9 adds edge deployment capabilities: exporting trained PyTorch
+policies to ONNX format, optional TensorRT optimization for NVIDIA
+hardware, an edge inference runtime implementing the Policy ABC, and
+deployment packaging with metadata manifests. All edge dependencies
+are optional — the platform works without them installed.
+
+### Module — forge_core/edge_deploy.py
+
+| Class / Function | Purpose |
+|------------------|---------|
+| OnnxExporter | Export PolicyNetwork to ONNX with validation |
+| TensorRTOptimizer | Optional TensorRT engine builder (runtime-detected) |
+| OnnxPolicy | Policy ABC implementation using ONNX Runtime |
+| TensorRTPolicy | Policy ABC implementation using TensorRT (guarded) |
+| EdgePolicy | Auto-selecting runtime: TensorRT if available, else ONNX |
+| DeploymentPackager | Package model + manifest for deployment |
+
+### ONNX Export
+
+The OnnxExporter converts a trained PolicyNetwork (31-dim input,
+8-dim output MLP) to ONNX format. Export is configurable: opset version
+(default 17), static or dynamic batch size, and custom input/output
+names. After export, validate() runs N random samples through both
+PyTorch and ONNX Runtime, asserting numeric equivalence within a
+configurable tolerance (default 1e-5). export_from_checkpoint() loads
+a .pt state dict and exports in one step.
+
+### TensorRT Optimization
+
+TensorRTOptimizer converts an ONNX model to a TensorRT engine for
+GPU-accelerated inference. TensorRT is **never a pip dependency** — it
+is detected at runtime via has_tensorrt(). When unavailable, the
+optimizer reports available() == False and raises RuntimeError on
+use. Supports FP16 and FP32 precision modes, configurable max batch
+size and workspace.
+
+### Edge Inference Runtime
+
+Three policy classes implement the Policy ABC for edge inference:
+
+- **OnnxPolicy** — loads an ONNX model into an onnxruntime.InferenceSession,
+  runs extract_observation() then session inference to produce an action ndarray.
+- **TensorRTPolicy** — loads a TensorRT engine with CUDA buffers.
+  Raises RuntimeError at init if TensorRT is not installed.
+- **EdgePolicy** — auto-selects the best available runtime: checks for
+  .trt/.engine files + TensorRT availability, falls back to .onnx.
+
+All three support benchmark() for latency measurement (mean, std, min,
+max over N iterations).
+
+### Deployment Packaging
+
+DeploymentPackager.package() creates a self-contained deployment
+directory:
+
+`
+deploy_output/
+  model.onnx          # Exported ONNX model
+  manifest.yaml       # Deployment metadata
+  model.trt           # Optional TensorRT engine
+`
+
+The manifest.yaml contains: model name, format, opset version,
+input/output shapes, source experiment, source checkpoint, creation
+timestamp, and arbitrary metadata.
+
+### Integration
+
+- **Model registry**: export_from_registry() looks up a registered
+  model by name/version and exports its checkpoint to ONNX.
+- **Runner**: load_edge_policy_from_registry() exports and wraps a
+  registry model as an OnnxPolicy.
+- **Eval CLI**: forge_eval.py --onnx-model <path> evaluates a task
+  using an ONNX policy.
+- **Policy factory**: create_policy('onnx', onnx_path=...) and
+  create_policy('edge', model_dir=...) integrate with the existing
+  policy creation pattern.
+
+### CLI — scripts/forge_deploy.py
+
+`
+python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx
+python3 scripts/forge_deploy.py --validate --model models/bc_policy.onnx --checkpoint models/bc_policy.pt
+python3 scripts/forge_deploy.py --benchmark --model models/bc_policy.onnx --n-iterations 200
+python3 scripts/forge_deploy.py --package --model models/bc_policy.onnx --output deploy/ --name bc_pick_red_cube
+python3 scripts/forge_deploy.py --optimize --model models/bc_policy.onnx --output models/bc_policy.trt --precision fp16
+python3 scripts/forge_deploy.py --export-registry --name bc_pick_red_cube --version 1 --output models/exported.onnx
+`
+
+---
 ## Design Principles
 
 1. **forge_core has no ROS dependency** — everything can be tested with pytest alone
@@ -630,3 +726,4 @@ The regression module connects to existing components:
 4. **Policy interface is ML-ready** — same `reset/act/done` interface for scripted and learned policies
 5. **Faults compose** — stack any combination in a profile
 6. **Runs are self-contained** — each run directory has everything needed to understand and reproduce it
+7. **Edge deployment is optional** — onnx/onnxruntime under [edge] extra, TensorRT runtime-detected, never a pip dependency

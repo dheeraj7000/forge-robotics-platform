@@ -7,12 +7,13 @@ deploying ML-powered robotic systems. It answers the question:
 
 > *What happens after a model or robot policy leaves the notebook?*
 
-## Current Status: Phase 8 — CI/CD (Regression Evaluation)
+## Current Status: Phase 9 — Edge Deployment (ONNX, TensorRT)
 
-Phases 1–8 are complete: simulation foundation, task evaluation,
+Phases 1–9 are complete: simulation foundation, task evaluation,
 telemetry/replay, chaos testing, camera-based perception, learned
 policy via behavioral cloning, ML infrastructure (experiment
-tracking + model registry), and CI/CD with regression evaluation.
+tracking + model registry), CI/CD with regression evaluation,
+and edge deployment (ONNX export, TensorRT optimization, edge inference runtime).
 
 ### What's included
 
@@ -31,7 +32,8 @@ tracking + model registry), and CI/CD with regression evaluation.
 - **Regression evaluation** — automated baseline comparison to detect performance degradations, configurable metric tolerances
 - **CI/CD pipelines** — GitHub Actions workflows for testing (Python 3.10/3.11 matrix) and regression evaluation
 - **Baseline management** — JSON-based baseline storage with CLI for create, check, compare, and update
-- **233 automated tests**, all passing
+- **Edge deployment** — ONNX export from trained PyTorch policies, optional TensorRT optimization, edge inference runtime implementing Policy ABC, deployment packaging with metadata manifest
+- **271 automated tests**, all passing
 
 ### What's NOT included (intentionally)
 
@@ -56,7 +58,7 @@ pip install -e '.[ml]'  # PyTorch for learned policies (optional)
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 233 tests, no ROS needed
+python3 -m pytest tests/ -v     # 271 tests, no ROS needed
 python3 scripts/forge_doctor.py  # health check
 ```
 
@@ -147,6 +149,22 @@ python3 scripts/forge_regression.py --update-baseline --suite manipulation-v1
 python3 scripts/forge_regression.py --compare baselines/old.json baselines/new.json
 ```
 
+### Edge Deployment
+
+`ash
+# Export a trained model to ONNX
+python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx
+
+# Validate ONNX model against PyTorch checkpoint
+python3 scripts/forge_deploy.py --validate --model models/bc_policy.onnx --checkpoint models/bc_policy.pt
+
+# Benchmark inference latency
+python3 scripts/forge_deploy.py --benchmark --model models/bc_policy.onnx --n-iterations 200
+
+# Package model for deployment
+python3 scripts/forge_deploy.py --package --model models/bc_policy.onnx --output deploy/ --name bc_pick_red_cube
+`
+
 ### ROS 2 (optional)
 
 ```bash
@@ -174,6 +192,7 @@ forge/
 │   ├── experiment.py        # Experiment tracking (JSON-based)
 │   ├── model_registry.py    # Model registry with stage lifecycle
 │   ├── regression.py        # Regression evaluation and baseline management
+│   ├── edge_deploy.py       # ONNX export, TensorRT optimization, edge inference
 │   └── config.py            # YAML configuration loading
 ├── ros2_ws/src/
 │   ├── forge_sim/           # Simulator node + object state + reset
@@ -213,11 +232,13 @@ forge/
 │   ├── forge_perception.py  # Perception CLI
 │   ├── forge_train.py       # Training CLI
 │   ├── forge_registry.py   # Experiment & model registry CLI
-│   └── forge_regression.py  # Regression testing CLI
+│   ├── forge_regression.py  # Regression testing CLI
+│   └── forge_deploy.py      # Edge deployment CLI
 ├── config/
 │   ├── default.yaml
 │   ├── training.yaml        # ML training configuration
-│   └── regression.yaml      # Regression evaluation thresholds
+│   ├── regression.yaml      # Regression evaluation thresholds
+│   └── deploy.yaml          # Edge deployment configuration
 ├── .github/workflows/       # CI/CD pipeline definitions
 │   ├── ci.yml               # Test workflow (Python matrix)
 │   └── regression.yml       # Regression evaluation workflow
@@ -249,7 +270,7 @@ forge/
 | 6 | Done | Learned policy (PyTorch) |
 | 7 | Done | ML infrastructure (experiment tracking, model registry) |
 | 8 | Done | CI/CD (regression evaluation) |
-| 9 | — | Edge deployment (ONNX, TensorRT) |
+| 9 | Done | Edge deployment (ONNX, TensorRT) |
 | 10 | — | Fleet & OTA |
 | 11 | — | Physical robot |
 

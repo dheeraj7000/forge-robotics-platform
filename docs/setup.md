@@ -67,6 +67,21 @@ pip install torch>=2.0
 PyTorch is only required for training and running learned policies.
 All other Forge features work without it.
 
+
+## Step 2c: Edge Deployment Dependencies
+
+To use edge deployment features (Phase 9), install the edge extras:
+
+\\ash
+pip install -e '.[edge]'
+\
+This adds \onnx\ and \onnxruntime\. TensorRT must be installed
+separately from [NVIDIA's documentation](https://developer.nvidia.com/tensorrt)
+if GPU-accelerated inference is needed.
+
+Edge deployment features work without TensorRT installed (ONNX-only
+mode). TensorRT is detected at runtime and used when available.
+
 ## Step 3: Verify Installation
 
 ```bash
@@ -336,6 +351,30 @@ The check command exits with code 0 if no regressions are detected,
 and code 1 if any task has regressed (newly failing or metrics degraded
 beyond tolerance).
 
+## Edge Deployment
+
+Forge can export trained PyTorch policies to ONNX for edge deployment,
+with optional TensorRT optimization.
+
+\\ash
+# Export a trained model to ONNX
+python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx
+
+# Validate ONNX model against PyTorch checkpoint
+python3 scripts/forge_deploy.py --validate --model models/bc_policy.onnx --checkpoint models/bc_policy.pt
+
+# Benchmark inference latency
+python3 scripts/forge_deploy.py --benchmark --model models/bc_policy.onnx --n-iterations 200
+
+# Package model for deployment (ONNX + manifest)
+python3 scripts/forge_deploy.py --package --model models/bc_policy.onnx --output deploy/ --name bc_pick_red_cube
+
+# Optimize with TensorRT (requires TensorRT installed)
+python3 scripts/forge_deploy.py --optimize --model models/bc_policy.onnx --output models/bc_policy.trt --precision fp16
+
+# Export a model from the registry to ONNX
+python3 scripts/forge_deploy.py --export-registry --name bc_pick_red_cube --version 1 --output models/exported.onnx
+\
 ## CI/CD
 
 Forge uses GitHub Actions for continuous integration and regression
@@ -378,7 +417,7 @@ git commit -m "chore: update regression baseline"
 ## Running Tests
 
 ```bash
-# All tests (233 tests, no ROS needed)
+# All tests (271 tests, no ROS needed)
 python3 -m pytest tests/ -v
 
 # Specific module

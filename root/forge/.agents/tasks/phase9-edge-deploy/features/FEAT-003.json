@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-003",
+  "type": "docs",
+  "description": "Update all project documentation for Phase 9: add Edge Deployment section to docs/architecture.md, update docs/setup.md with edge deployment installation and usage, update README.md with status, features, roadmap, project structure, and test count. Independent of FEAT-001/FEAT-002 in content but should run after them so test count and feature list are accurate.",
+  "status": "completed",
+  "steps": [
+    "1. Update docs/architecture.md: Add a new '## Phase 9 \u2014 Edge Deployment (ONNX / TensorRT)' section after the Phase 8 section and before the Design Principles section. Include subsections: ### Overview (one paragraph about ONNX export + TensorRT + edge inference + packaging), ### Module \u2014 forge_core/edge_deploy.py (table of key classes: OnnxExporter, TensorRTOptimizer, OnnxPolicy, TensorRTPolicy, EdgePolicy, DeploymentPackager with one-line descriptions), ### ONNX Export (describe export pipeline: PolicyNetwork -> ONNX, validation with numeric equivalence within 1e-5, configurable opset), ### TensorRT Optimization (conditional, runtime-detected, FP16/FP32, graceful fallback), ### Edge Inference Runtime (OnnxPolicy/TensorRTPolicy/EdgePolicy implementing Policy ABC, benchmarking), ### Deployment Packaging (directory structure: model.onnx + manifest.yaml, metadata fields), ### Integration (model registry export, runner edge policy loading, forge_eval.py --onnx-model), ### CLI \u2014 scripts/forge_deploy.py (show all 6 command examples in a code block). Also update the Overview paragraph at the top to say 'Phases 1\u20139' and include 'edge deployment (ONNX export, TensorRT optimization)' in the capability list. Update the Design Principles list to add principle 7: 'Edge deployment is optional \u2014 onnx/onnxruntime under [edge] extra, TensorRT runtime-detected, never a pip dependency'.",
+    "2. Update docs/setup.md: Add a new '## Step 2c: Edge Deployment Dependencies' section after 'Step 2b: Machine Learning Dependencies'. Content: pip install -e '.[edge]' installs onnx + onnxruntime. TensorRT must be installed separately (link to NVIDIA docs). Note that edge deployment features work without TensorRT (ONNX-only mode). Add a new '## Edge Deployment' section after the 'Regression Testing' section with CLI usage examples for forge_deploy.py: export, validate, benchmark, package, optimize, export-registry. Follow the existing format with bash code blocks.",
+    "3. Update README.md: (a) Change 'Current Status' line to 'Phase 9 \u2014 Edge Deployment (ONNX, TensorRT)'. (b) Update the 'Phases 1\u20138 are complete' paragraph to say 'Phases 1\u20139 are complete' and add 'edge deployment (ONNX export, TensorRT optimization, edge inference runtime)' to the capability list. (c) Add bullet points in 'What's included': '- **Edge deployment** \u2014 ONNX export from trained PyTorch policies, optional TensorRT optimization, edge inference runtime implementing Policy ABC, deployment packaging with metadata manifest'. (d) Add a '### Edge Deployment' subsection in the usage examples section with forge_deploy.py examples for export, validate, benchmark, package. (e) Update project structure tree: add edge_deploy.py to forge_core/ listing, add forge_deploy.py to scripts/ listing, add deploy.yaml to config/ listing. (f) Update test count from 233 to the actual new count (count from FEAT-002 test run). (g) Update Phase Roadmap table: Phase 9 status from '\u2014' to 'Done'. (h) Update the 'Verify' section count to match."
+  ],
+  "acceptance_criteria": [
+    "docs/architecture.md has a complete Phase 9 section with all subsections",
+    "docs/architecture.md overview says Phases 1-9",
+    "docs/setup.md has edge deployment installation and usage sections",
+    "README.md status says Phase 9, features list includes edge deployment, roadmap shows Phase 9 Done",
+    "README.md test count matches actual test count",
+    "README.md project structure includes edge_deploy.py, forge_deploy.py, deploy.yaml",
+    "All documentation references are internally consistent"
+  ],
+  "verification": [
+    "Run: python3 -m pytest tests/ -v \u2014 count total tests, verify README test count matches",
+    "Run: grep -c 'Phase 9' docs/architecture.md \u2014 should be >= 2 (heading + overview)",
+    "Run: grep 'edge_deploy' README.md \u2014 should find entries in project structure"
+  ],
+  "blocked_reason": null,
+  "findings": "Updated docs/architecture.md with Phase 9 section (overview, module table, ONNX export, TensorRT, edge inference, packaging, integration, CLI subsections), updated overview to Phases 1-9, added design principle 7. Updated docs/setup.md with Step 2c edge deps and Edge Deployment usage section. Updated README.md: status to Phase 9, features list with edge deployment, test count to 271, project structure with edge_deploy.py/forge_deploy.py/deploy.yaml, Phase 9 roadmap as Done, Edge Deployment CLI examples section. All 271 tests pass."
+}
