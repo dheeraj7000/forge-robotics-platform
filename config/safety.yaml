@@ -1,0 +1,12 @@
+# Forge safety limits configuration
+joint_limits:
+  lower: [-2.9, -1.8, -2.9, -3.1, -2.9, -0.02, -2.9]
+  upper: [2.9, 1.8, 2.9, -0.07, 2.9, 3.8, 2.9]
+
+velocity_limits: [2.2, 2.2, 2.2, 2.2, 2.6, 2.6, 2.6]
+
+workspace:
+  min: [-1.0, -1.0, 0.0]
+  max: [1.0, 1.0, 1.5]
+
+max_gripper_force: 70.0

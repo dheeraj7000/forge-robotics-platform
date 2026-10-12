@@ -1,0 +1,13 @@
+# Forge robot connection and sim-to-real configuration
+robot:
+  type: simulated
+  scenario: basic_workspace
+  steps_per_command: 10
+
+sim2real:
+  domain_randomization:
+    gravity_range: [-10.5, -9.0]
+    friction_range: [0.5, 1.5]
+    mass_scale_range: [0.8, 1.2]
+    sensor_noise_std: 0.01
+    actuator_noise_std: 0.005
