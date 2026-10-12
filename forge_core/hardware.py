@@ -233,3 +233,122 @@ class SimulatedRobot(RobotInterface):
             uptime=uptime,
             last_heartbeat=self._last_heartbeat,
         )
+
+
+# ── Robot runner ────────────────────────────────────────────
+
+
+def run_policy_on_robot(
+    robot: RobotInterface,
+    policy: "Policy",
+    safety_monitor: "SafetyMonitor | None" = None,
+    recorder: "TrajectoryBuffer | None" = None,
+    max_steps: int = 10000,
+    verbose: bool = False,
+) -> dict[str, Any]:
+    """Run a policy on a robot (real or simulated).
+
+    Creates a shadow ForgeSimulation for the policy (which expects a
+    ``ForgeSimulation`` in its ``reset`` / ``act`` calls).  If *robot*
+    is a :class:`SimulatedRobot`, its internal simulation is reused.
+
+    Args:
+        robot: Connected RobotInterface.
+        policy: Policy instance (lazily imported to avoid circular deps).
+        safety_monitor: Optional SafetyMonitor to gate commands.
+        recorder: Optional TrajectoryBuffer for recording.
+        max_steps: Maximum number of control cycles.
+        verbose: Log progress periodically.
+
+    Returns:
+        Summary dict with keys ``steps``, ``completed``, ``safety_violations``,
+        ``e_stopped``.
+    """
+    # Lazy imports to avoid circular dependencies
+    from forge_core.policy import Policy as _Policy  # noqa: F811
+    from forge_core.recorder import TrajectoryBuffer as _TrajectoryBuffer  # noqa: F811
+    from forge_core.safety import SafetyMonitor as _SafetyMonitor  # noqa: F811
+
+    # Obtain or create a ForgeSimulation for the policy
+    if isinstance(robot, SimulatedRobot) and robot._sim is not None:
+        sim = robot._sim
+    else:
+        sim = ForgeSimulation("basic_workspace")
+        sim.reset()
+
+    policy.reset(sim)
+
+    step_count = 0
+    safety_violations = 0
+    e_stopped = False
+
+    while not policy.done and step_count < max_steps:
+        targets = policy.act(sim)
+
+        # Build a RobotCommand from the policy output
+        arm_targets = targets[:7] if len(targets) >= 7 else targets
+        gripper_cmd = float(targets[7]) if len(targets) > 7 else 0.0
+        cmd = RobotCommand(
+            joint_targets=arm_targets,
+            gripper_command=gripper_cmd,
+            timestamp=time.time(),
+        )
+
+        # Safety check
+        if safety_monitor is not None:
+            sent, violations = safety_monitor.safe_send_command(cmd)
+            if not sent:
+                safety_violations += len(violations)
+                # Check if e-stop was triggered
+                status = robot.get_status()
+                if status.status == "e_stopped":
+                    e_stopped = True
+                    break
+                step_count += 1
+                continue
+        else:
+            robot.send_command(cmd)
+
+        # Sync shadow sim state from robot state
+        hw_state = robot.get_state()
+
+        # Record if recorder provided
+        if recorder is not None:
+            obj_states: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+            try:
+                for o in sim.get_object_states():
+                    obj_states[o.id] = (o.position, o.orientation)
+            except Exception:
+                pass
+            recorder.record_step(
+                timestamp=hw_state.timestamp,
+                joint_pos=hw_state.joint_positions,
+                joint_vel=hw_state.joint_velocities,
+                ee_pos=hw_state.ee_position,
+                ee_quat=hw_state.ee_orientation,
+                action=targets,
+                object_states=obj_states,
+            )
+
+        step_count += 1
+        if verbose and step_count % 100 == 0:
+            logger.info("run_policy_on_robot: step %d", step_count)
+
+    # Check final robot status
+    final_status = robot.get_status()
+    if final_status.status == "e_stopped":
+        e_stopped = True
+
+    completed = policy.done
+
+    logger.info(
+        "run_policy_on_robot_done: steps=%d, completed=%s, violations=%d, e_stopped=%s",
+        step_count, completed, safety_violations, e_stopped,
+    )
+
+    return {
+        "steps": step_count,
+        "completed": completed,
+        "safety_violations": safety_violations,
+        "e_stopped": e_stopped,
+    }

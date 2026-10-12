@@ -114,16 +114,18 @@ def load_safety_config(path: str | Path | None = None) -> SafetyConfig:
             return SafetyConfig()
         data = load_yaml(default_path)
 
-    # Flatten nested YAML structure into the dataclass fields
+    # Flatten nested YAML structure into the dataclass fields.
+    # Use an instance for defaults since fields use default_factory.
+    _defaults = SafetyConfig()
     joint_limits = data.get("joint_limits", {})
     workspace = data.get("workspace", {})
     return SafetyConfig.from_dict({
-        "joint_limits_lower": joint_limits.get("lower", SafetyConfig.joint_limits_lower),
-        "joint_limits_upper": joint_limits.get("upper", SafetyConfig.joint_limits_upper),
-        "velocity_limits": data.get("velocity_limits", SafetyConfig.velocity_limits),
-        "workspace_min": workspace.get("min", SafetyConfig.workspace_min),
-        "workspace_max": workspace.get("max", SafetyConfig.workspace_max),
-        "max_gripper_force": data.get("max_gripper_force", SafetyConfig.max_gripper_force),
+        "joint_limits_lower": joint_limits.get("lower", _defaults.joint_limits_lower),
+        "joint_limits_upper": joint_limits.get("upper", _defaults.joint_limits_upper),
+        "velocity_limits": data.get("velocity_limits", _defaults.velocity_limits),
+        "workspace_min": workspace.get("min", _defaults.workspace_min),
+        "workspace_max": workspace.get("max", _defaults.workspace_max),
+        "max_gripper_force": data.get("max_gripper_force", _defaults.max_gripper_force),
     })
 
 

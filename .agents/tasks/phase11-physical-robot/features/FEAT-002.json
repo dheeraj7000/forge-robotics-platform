@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Physical robot runner, CLI (scripts/forge_robot.py), and comprehensive unit tests for all Phase 11 modules. Depends on FEAT-001 (hardware.py, safety.py, sim2real.py must exist). The runner reuses the existing Policy interface and integrates with the recorder and safety system. Tests cover hardware abstraction, safety system, and sim-to-real utilities.",
+  "status": "completed",
+  "steps": [
+    "Step 1 — Added run_policy_on_robot function to forge_core/hardware.py",
+    "Step 2 — Created scripts/forge_robot.py CLI with connect, run, safety-check, calibrate, compare-sim, status subcommands",
+    "Step 3 — Created tests/unit/test_hardware.py with 22 tests",
+    "Step 4 — Created tests/unit/test_safety.py with 18 tests",
+    "Step 5 — Created tests/unit/test_sim2real.py with 16 tests"
+  ],
+  "acceptance_criteria": [
+    "run_policy_on_robot function exists in forge_core/hardware.py and works with SimulatedRobot + NullPolicy",
+    "scripts/forge_robot.py is executable with --help, connect, run, safety-check, calibrate, compare-sim, status subcommands",
+    "tests/unit/test_hardware.py has at least 15 tests covering all dataclasses, SimulatedRobot lifecycle, and run_policy_on_robot",
+    "tests/unit/test_safety.py has at least 12 tests covering SafetyConfig, SafetyViolation, SafetyMonitor check/send/stop",
+    "tests/unit/test_sim2real.py has at least 10 tests covering domain randomization, trajectory comparison, and calibration",
+    "All existing 328 tests still pass plus all new tests pass",
+    "Total test count is at least 365"
+  ],
+  "verification": [
+    "Run python3 -m pytest tests/unit/test_hardware.py tests/unit/test_safety.py tests/unit/test_sim2real.py -v — all 56 new tests pass",
+    "Run python3 -m pytest tests/ -v — 384 total tests pass (328 existing + 56 new), exit code 0",
+    "Run python3 scripts/forge_robot.py --help — prints help text with all 6 subcommands"
+  ],
+  "blocked_reason": null,
+  "findings": "384 total tests (328 existing + 56 new): test_hardware.py=22, test_safety.py=18, test_sim2real.py=16. Fixed pre-existing bug in load_safety_config where SafetyConfig class-level access to default_factory fields raised AttributeError — replaced with instance-based defaults. NullPolicy targets use Panda home position [0,0,0,-1.57,0,1.57,-0.785,0] which is within all safety limits (joint 3 range is [-3.1, -0.07])."
+}
