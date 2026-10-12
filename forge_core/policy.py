@@ -173,8 +173,24 @@ def create_policy(name: str, **kwargs) -> Policy:
         from forge_core.learned_policy import LearnedPolicy
         return LearnedPolicy(**kwargs)
 
+    # Lazy import ONNX policy to avoid onnxruntime dependency when not needed
+    if name == "onnx":
+        from forge_core.edge_deploy import OnnxPolicy
+        onnx_path = kwargs.pop("onnx_path", None)
+        if onnx_path is None:
+            raise ValueError("onnx_path is required for 'onnx' policy")
+        return OnnxPolicy(onnx_path=onnx_path, **kwargs)
+
+    # Lazy import edge policy to avoid onnxruntime/tensorrt dependency when not needed
+    if name == "edge":
+        from forge_core.edge_deploy import EdgePolicy
+        model_dir = kwargs.pop("model_dir", None)
+        if model_dir is None:
+            raise ValueError("model_dir is required for 'edge' policy")
+        return EdgePolicy(model_dir=model_dir, **kwargs)
+
     cls = POLICY_REGISTRY.get(name)
     if cls is None:
-        available = ", ".join(list(POLICY_REGISTRY.keys()) + ["learned"])
+        available = ", ".join(list(POLICY_REGISTRY.keys()) + ["learned", "onnx", "edge"])
         raise ValueError(f"Unknown policy '{name}'. Available: {available}")
     return cls(**kwargs)

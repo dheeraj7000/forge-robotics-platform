@@ -1,0 +1,42 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Wire edge deployment into the existing platform: update policy.py to register onnx/edge policies, update runner.py with edge policy loading, update forge_eval.py with --onnx-model flag, create the CLI script scripts/forge_deploy.py, and add comprehensive unit tests. Depends on FEAT-001 (core module must exist).",
+  "status": "completed",
+  "steps": [
+    "1. Update forge_core/policy.py: In create_policy(), add lazy-import handling for 'onnx' and 'edge' policy names, following the same pattern as 'learned'. For 'onnx': from forge_core.edge_deploy import OnnxPolicy; return OnnxPolicy(onnx_path=kwargs.pop('onnx_path', None), **kwargs) — raise ValueError if onnx_path not provided. For 'edge': from forge_core.edge_deploy import EdgePolicy; return EdgePolicy(model_dir=kwargs.pop('model_dir', None), **kwargs) — raise ValueError if model_dir not provided. Also update the 'available' string in the existing ValueError to include 'onnx' and 'edge'.",
+    "2. Update forge_core/runner.py: Add function load_edge_policy_from_registry(name: str, version: int | None = None, stage: str | None = None, output_dir: str | Path | None = None, **policy_kwargs) -> Policy. This function: imports OnnxExporter and OnnxPolicy from forge_core.edge_deploy, imports ModelRegistry, looks up the model, exports it to ONNX (to output_dir or a temp path under models/), returns an OnnxPolicy wrapping the exported ONNX. Logs the export step.",
+    "3. Update scripts/forge_eval.py: Add --onnx-model argument (type=str, default=None, help='Path to ONNX model for edge policy evaluation'). In the policy creation logic, when --onnx-model is provided, set policy_name = 'onnx' and policy_kwargs['onnx_path'] = args.onnx_model. This goes in the existing if/elif chain alongside --registry-model and --model-path handling.",
+    "4. Create scripts/forge_deploy.py: A CLI script following the pattern of forge_eval.py and forge_train.py. Uses argparse with mutually exclusive action flags. Imports are at the top with sys.path insert for project root. Actions: --export --model <path> --output <path> [--opset N] [--dynamic-batch] (exports .pt to .onnx via OnnxExporter); --validate --model <path> --checkpoint <path> [--tolerance F] [--n-samples N] (validates ONNX vs PyTorch via OnnxExporter.validate); --benchmark --model <path> [--n-iterations N] (benchmarks OnnxPolicy or TensorRTPolicy); --package --model <path> --output <dir> [--name STR] [--include-tensorrt] (packages via DeploymentPackager); --optimize --model <path> --output <path> [--precision fp16|fp32] (TensorRT optimization via TensorRTOptimizer, prints warning and exits if TensorRT unavailable); --export-registry --name STR [--version N] [--output <path>] (exports from model registry via export_from_registry). Each action prints clear status messages. Script is executable (#!/usr/bin/env python3).",
+    "5. Create tests/unit/test_edge_deploy.py following the test patterns in test_learned_policy.py and test_model_registry.py. Must use sys.path insert at top. Test classes and cases:",
+    "5a. TestRuntimeDetection: test_has_onnxruntime_returns_bool(), test_has_tensorrt_returns_false() (no TensorRT in test env).",
+    "5b. TestExportConfig: test_default_values(), test_custom_values().",
+    "5c. TestTensorRTConfig: test_default_values(), test_custom_precision().",
+    "5d. TestOnnxExporter: test_export_creates_onnx_file(tmp_path) — creates PolicyNetwork, exports, asserts file exists and size > 0; test_export_custom_opset(tmp_path); test_export_dynamic_batch(tmp_path); test_validate_passes(tmp_path) — export then validate, assert returns True; test_validate_fails_on_bad_tolerance(tmp_path) — validate with tolerance=0 should fail if outputs don't match exactly; test_export_from_checkpoint(tmp_path) — save a .pt, export from it, verify ONNX file exists; test_validate_shape_check(tmp_path) — export and validate structurally via onnx.checker.",
+    "5e. TestOnnxPolicy: test_implements_policy_abc(); test_act_returns_correct_shape(tmp_path) — create PolicyNetwork, export to ONNX, create OnnxPolicy, mock sim to return valid robot/object state, call act(), assert shape == (ACT_DIM,); test_reset_clears_state(tmp_path); test_done_after_max_steps(tmp_path); test_name_property(tmp_path); test_benchmark(tmp_path) — call benchmark(), check result dict has mean_ms, std_ms, min_ms, max_ms keys.",
+    "5f. TestTensorRTPolicy: test_available_returns_false() (no TensorRT); test_init_raises_without_tensorrt(tmp_path) — assert RuntimeError. Both marked with pytest.mark.skipif only if TensorRT IS available (these test the unavailable path).",
+    "5g. TestTensorRTOptimizer: test_available_returns_false(); test_optimize_raises_without_tensorrt(tmp_path). Use pytest.mark.skipif(has_tensorrt(), reason='TensorRT is installed') to skip when TensorRT is actually present.",
+    "5h. TestEdgePolicy: test_selects_onnx_when_no_tensorrt(tmp_path) — create dir with .onnx file, create EdgePolicy, assert runtime == 'onnx'; test_raises_on_empty_dir(tmp_path); test_name_property(tmp_path); test_delegates_act(tmp_path) — call act with mock sim, verify correct shape.",
+    "5i. TestDeploymentManifest: test_to_dict(), test_from_dict_roundtrip().",
+    "5j. TestDeploymentPackager: test_package_creates_directory(tmp_path) — export ONNX, package, assert output dir has .onnx file and manifest.yaml; test_manifest_contents(tmp_path) — load manifest.yaml and verify fields; test_package_without_tensorrt(tmp_path).",
+    "5k. TestExportFromRegistry: test_export_from_registry(tmp_path) — create a ModelRegistry in tmp_path, register a model with a real .pt checkpoint, call export_from_registry, assert ONNX file exists.",
+    "5l. TestBenchmarkInference: test_benchmark_onnx_policy(tmp_path) — create OnnxPolicy, call benchmark_inference(), verify result dict.",
+    "5m. All tests that need onnxruntime must be guarded with: @pytest.mark.skipif(not has_onnxruntime(), reason='onnxruntime not installed'). All tests that need TensorRT: @pytest.mark.skipif(not has_tensorrt(), reason='TensorRT not installed'). Tests for the 'TensorRT unavailable' path use: @pytest.mark.skipif(has_tensorrt(), reason='TensorRT is installed — cannot test unavailable path')."
+  ],
+  "acceptance_criteria": [
+    "create_policy('onnx', onnx_path='...') returns an OnnxPolicy instance",
+    "create_policy('edge', model_dir='...') returns an EdgePolicy instance",
+    "forge_eval.py --onnx-model flag works to evaluate with an ONNX model",
+    "scripts/forge_deploy.py exists and is executable with all 6 action flags",
+    "tests/unit/test_edge_deploy.py contains all specified test classes",
+    "python3 -m pytest tests/unit/test_edge_deploy.py -v passes all tests (TensorRT tests skipped)",
+    "python3 -m pytest tests/ -v passes ALL tests including the new ones"
+  ],
+  "verification": [
+    "Run: python3 -m pytest tests/unit/test_edge_deploy.py -v — all new tests pass (TensorRT-specific tests skipped)",
+    "Run: python3 -m pytest tests/ -v — all tests pass (expected: 233 + new edge deploy tests)",
+    "Run: python3 scripts/forge_deploy.py --help — prints usage with all action flags"
+  ],
+  "blocked_reason": null,
+  "findings": "All FEAT-002 steps implemented. Updated policy.py with 'onnx' and 'edge' lazy imports in create_policy(). Added load_edge_policy_from_registry() to runner.py. Added --onnx-model argument to forge_eval.py. Created scripts/forge_deploy.py CLI with 6 mutually exclusive action flags (--export, --validate, --benchmark, --package, --optimize, --export-registry). Created tests/unit/test_edge_deploy.py with 38 tests across 14 test classes: TestRuntimeDetection (2), TestExportConfig (2), TestTensorRTConfig (2), TestOnnxExporter (7), TestOnnxPolicy (6), TestTensorRTPolicy (2), TestTensorRTOptimizer (2), TestEdgePolicy (4), TestDeploymentManifest (2), TestDeploymentPackager (3), TestExportFromRegistry (1), TestBenchmarkInference (1), TestCreatePolicyIntegration (4). All 38 new tests pass; TensorRT-specific tests test the unavailable path. Full suite: 271 tests pass (233 existing + 38 new)."
+}

@@ -88,6 +88,8 @@ def main():
                         help="Load model from registry by name")
     parser.add_argument("--registry-version", type=int, default=None,
                         help="Model version to load from registry")
+    parser.add_argument("--onnx-model", type=str, default=None,
+                        help="Path to ONNX model for edge policy evaluation")
     parser.add_argument("--save", action="store_true", help="Save results to runs/")
     parser.add_argument("--record", action="store_true",
                         help="Record trajectories to runs/run_XXXXX/")
@@ -125,6 +127,9 @@ def main():
         policy_name = "learned"
         print(f"Loading from registry: {entry['name']} v{entry['version']} "
               f"(stage={entry['stage']})")
+    elif args.onnx_model:
+        policy_name = "onnx"
+        policy_kwargs["onnx_path"] = args.onnx_model
     elif args.model_path:
         policy_kwargs["model_path"] = args.model_path
 

@@ -242,6 +242,61 @@ def format_suite_summary(results: list[EvalResult]) -> str:
     return "\n".join(lines)
 
 
+def load_edge_policy_from_registry(
+    name: str,
+    version: int | None = None,
+    stage: str | None = None,
+    output_dir: str | Path | None = None,
+    **policy_kwargs,
+) -> Policy:
+    """Load a model from the registry, export to ONNX, and return an OnnxPolicy.
+
+    Lazily imports OnnxExporter and OnnxPolicy from edge_deploy, looks up the
+    model in the registry, exports the checkpoint to ONNX, and returns an
+    OnnxPolicy wrapping the exported file.
+
+    Args:
+        name: Registered model name.
+        version: Exact version to load. If None, loads the latest.
+        stage: Filter by stage (e.g. 'production'). Ignored if version given.
+        output_dir: Directory for the exported ONNX file. Defaults to models/.
+        **policy_kwargs: Extra keyword arguments passed to OnnxPolicy.
+
+    Returns:
+        An OnnxPolicy instance wrapping the exported ONNX model.
+
+    Raises:
+        ValueError: If the model is not found in the registry.
+    """
+    from forge_core.edge_deploy import OnnxExporter, OnnxPolicy
+    from forge_core.model_registry import ModelRegistry
+
+    registry = ModelRegistry()
+    entry = registry.get_model(name, version=version, stage=stage)
+    if entry is None:
+        version_str = f" v{version}" if version else ""
+        stage_str = f" stage={stage}" if stage else ""
+        raise ValueError(
+            f"Model not found in registry: {name}{version_str}{stage_str}"
+        )
+
+    checkpoint_path = entry["checkpoint_path"]
+    v = entry["version"]
+
+    if output_dir is None:
+        out = PROJECT_ROOT / "models"
+    else:
+        out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    onnx_path = out / f"{name}_v{v}.onnx"
+    exporter = OnnxExporter()
+    exporter.export_from_checkpoint(checkpoint_path, onnx_path)
+    logger.info("edge_registry_export: %s v%d -> %s", name, v, onnx_path)
+
+    return OnnxPolicy(onnx_path=onnx_path, **policy_kwargs)
+
+
 def load_policy_from_registry(
     name: str,
     version: int | None = None,
