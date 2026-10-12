@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase10-fleet-ota",
+  "task_description": "Implement Phase 10 — Fleet Manager and OTA Update System for the Forge robotics reliability platform. Adds device registry, fleet grouping/tagging, OTA update creation from Phase 9 deployment packages, rollout strategies (immediate/canary/staged), rollback, per-device update history, CLI, and documentation.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
