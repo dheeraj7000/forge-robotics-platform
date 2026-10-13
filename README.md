@@ -1,313 +1,343 @@
 # Forge
 
-**Robotics Reliability & Deployment Platform**
+Forge is a robotics reliability platform for validating, debugging, and deploying robot policies from simulation to edge devices. It provides reproducible task benchmarks, telemetry replay, fault injection, regression gates, model versioning, edge packaging, fleet rollout, safety monitoring, and sim-to-real utilities. The goal is to answer a production robotics question: *Can we prove that a robot policy is still safe and effective after it changes and is deployed to multiple robots?*
 
-Forge is a robotics reliability platform for developing, evaluating, debugging, and
-deploying ML-powered robotic systems. It answers the question:
+## Architecture
 
-> *What happens after a model or robot policy leaves the notebook?*
+```mermaid
+graph TD
+    A[Task Definition<br/>YAML tasks + success criteria] --> B[Simulator / Robot Adapter<br/>MuJoCo Panda · SimulatedRobot]
+    B --> C[Policy<br/>Scripted · Learned · ONNX]
+    C --> D[Safety Monitor<br/>Joint · Velocity · Workspace checks]
+    D --> E[Controller<br/>Action execution]
+    E --> F[Evaluator<br/>4 criterion types]
+    F --> G[Telemetry<br/>Per-cycle .npz recording]
+    G --> H[Replay<br/>Any timestep inspection]
+    H --> I[Regression Gate<br/>Baseline comparison · CI block]
+    I --> J[Model Registry<br/>Stage lifecycle · JSON store]
+    J --> K[Edge Package<br/>ONNX export · validation · runtime]
+    K --> L[Fleet Rollout<br/>Canary · Staged · Immediate]
+    L --> M[Monitoring<br/>Device status · Update history]
+    M --> N[Rollback<br/>Per-device · Per-rollout]
 
-## Current Status: Phase 11 — All Phases Complete
+    style A fill:#e1f5fe
+    style F fill:#e8f5e9
+    style I fill:#fff3e0
+    style L fill:#fce4ec
+```
 
-Phases 1–11 are complete: simulation foundation, task evaluation,
-telemetry/replay, chaos testing, camera-based perception, learned
-policy via behavioral cloning, ML infrastructure (experiment
-tracking + model registry), CI/CD with regression evaluation,
-edge deployment (ONNX export, TensorRT optimization, edge inference runtime),
-fleet management with OTA updates, and
-physical robot support (hardware abstraction, safety system, sim-to-real transfer).
+## What Is Genuinely Implemented
 
-### What's included
+This table separates what Forge actually does from what it could do. Every claim maps to a specific source file and test coverage.
 
-- **Simulation** — MuJoCo Menagerie Franka Panda (mesh collision, accurate kinematics)
-- **ROS 2 integration** — three nodes publishing joint/object state via standard messages
-- **Task evaluation** — YAML task definitions with measurable success criteria
-- **Scripted policy** — deterministic pick-and-place waypoint sequence
-- **Benchmark CLI** — run tasks, suites, save results
-- **Telemetry** — per-cycle trajectory recording (joint state, EE pose, objects, actions)
-- **Replay** — load and inspect any recorded run at any timestep
-- **Chaos testing** — 6 fault types, composable YAML profiles, compare mode
-- **Perception** — MuJoCo offscreen camera rendering, OpenCV HSV color detection, depth-based 3D position estimation
-- **Learned policy** — PyTorch MLP trained via behavioral cloning from scripted demonstrations, configurable training pipeline with YAML config
-- **Experiment tracking** — file-based experiment tracker logging config, metrics, git commit, and tags per training run (JSON, zero external deps)
-- **Model registry** — versioned model registry with stage lifecycle (training → validated → production → archived), single-file JSON store
-- **Regression evaluation** — automated baseline comparison to detect performance degradations, configurable metric tolerances
-- **CI/CD pipelines** — GitHub Actions workflows for testing (Python 3.10/3.11 matrix) and regression evaluation
-- **Baseline management** — JSON-based baseline storage with CLI for create, check, compare, and update
-- **Edge deployment** — ONNX export from trained PyTorch policies, optional TensorRT optimization, edge inference runtime implementing Policy ABC, deployment packaging with metadata manifest
-- **Fleet & OTA** — device registry with status/tags/groups, OTA update packages from deployment artifacts, rollout strategies (immediate, canary, staged), rollback support, per-device update history
-- **Physical robot support** — hardware abstraction layer (RobotInterface ABC, SimulatedRobot), safety monitoring (joint/velocity/workspace limits), sim-to-real transfer (domain randomization, trajectory comparison, calibration)
-- **384 automated tests**, all passing
+### Tier 1 — Implemented and tested (384 tests, CI on every push)
 
-### What's NOT included (intentionally)
+| Capability | Source | Details |
+|---|---|---|
+| MuJoCo Menagerie Panda simulation | `forge_core/simulation.py` | Mesh collision, accurate Franka kinematics, headless rendering |
+| YAML task definitions | `forge_core/task.py`, `forge_core/evaluator.py` | 4 criterion types: position threshold, height threshold, gripper state, time limit |
+| Scripted pick-and-place policy | `forge_core/policy.py` | Deterministic waypoint sequence; succeeds on `pick_red_cube` in 5.1s sim time |
+| Per-cycle telemetry recording | `forge_core/recorder.py` | Joint state, end-effector pose, object positions, actions stored as `.npz` |
+| Replay at any timestep | `forge_core/replay.py` | Load any recorded run, inspect state at arbitrary cycle |
+| 6-type fault injection | `forge_core/faults.py` | YAML fault profiles, composable faults, compare mode (see Fault Types below) |
+| Camera perception | `forge_core/perception.py` | MuJoCo offscreen render, HSV color detection, depth-based 3D unprojection |
+| Behavioral cloning training | `forge_core/learned_policy.py` | PyTorch MLP, configurable architecture (default: `[256, 256, 128]`, 31 obs → 8 act) |
+| Experiment tracking | `forge_core/experiment.py` | JSON per experiment: config, metrics, git commit, tags. Zero external deps |
+| Model registry with stage lifecycle | `forge_core/model_registry.py` | Stages: training → validated → production → archived. Single-file JSON store |
+| Regression detection | `forge_core/regression.py` | Baseline comparison, configurable metric tolerance (default: 10%), CI gate |
+| ONNX export + validation + inference | `forge_core/edge_deploy.py` | ONNX opset 17, PyTorch↔ONNX output validation, `OnnxPolicy` runtime |
+| GitHub Actions CI | `.github/workflows/ci.yml` | Python 3.10/3.11 matrix, headless MuJoCo (`MUJOCO_GL=egl`) |
+| Regression CI gate | `.github/workflows/regression.yml` | Blocks merge on performance degradation |
 
-No LLM, VLM, or cloud infrastructure.
-Those belong to later phases.
+### Tier 2 — Implemented with simulated adapters
+
+| Capability | Source | What's simulated |
+|---|---|---|
+| Hardware abstraction layer | `forge_core/hardware.py` | `RobotInterface` ABC exists but **only `SimulatedRobot` is implemented** — no physical robot drivers |
+| Safety monitoring | `forge_core/safety.py` | Joint limit, velocity limit, workspace boundary checks — **applied to simulated commands only** |
+| Fleet device registry | `forge_core/fleet.py` | Local JSON file (`fleet/devices.json`) — no network, no concurrent access |
+| OTA update system | `forge_core/ota.py` | Packages, rollouts, history all stored as local JSON — **no actual network deployment** |
+| Sim-to-real utilities | `forge_core/sim2real.py` | Domain randomization on MuJoCo model, trajectory comparison and calibration — **all with synthetic data** |
+
+### Tier 3 — Prototype (code exists, not fully functional)
+
+| Capability | Status |
+|---|---|
+| TensorRT optimization path | Code in `edge_deploy.py` but TensorRT is never installed — tested only for the unavailable-library path |
+| Vision-based policy (`obs_mode='vision'`) | Raises `NotImplementedError` |
+| ROS 2 nodes (`ros2_ws/`) | Optional nodes exist; not covered by the 384-test suite |
+
+### Tier 4 — Future / production work
+
+| Capability | Migration path |
+|---|---|
+| Physical robot drivers | Implement `RobotInterface` for real arms (UR, Panda libfranka, etc.) |
+| Production registries | PostgreSQL for experiments/models, S3/GCS for artifacts |
+| Certified safety system | Hardware e-stop, watchdogs, formal risk assessment |
+| Cloud infrastructure | Artifact registry, message broker, device management service |
+| Vision policies | Complete the `obs_mode='vision'` path with image-based observations |
+
+## Benchmark Results
+
+### Baseline task performance
+
+Baseline results from `baselines/manipulation-v1.json` using the scripted pick-and-place policy:
+
+| Task | Result | Sim Time | Notes |
+|---|---|---|---|
+| `pick_red_cube` | ✅ SUCCESS | 5.1s | Policy reaches target position within threshold |
+| `pick_blue_cube` | ❌ FAILURE | 30.0s | Timeout — scripted policy is tuned for red cube position only |
+| `pick_red_cube_spread` | ❌ FAILURE | 30.0s | Timeout — spread layout places cube outside scripted waypoints |
+
+The scripted policy is intentionally narrow: it validates the evaluation pipeline on one task, and the failures on the other two demonstrate that the benchmark catches real limitations.
+
+### Fault injection impact
+
+Representative results from simulation runs with the 6 fault types:
+
+| Fault Type | Injected Condition | Expected Impact |
+|---|---|---|
+| `object_moved` | Cube teleported mid-run | Policy reaches wrong position; task fails |
+| `sensor_noise` | Gaussian noise on joint readings | Slight trajectory deviation; may still succeed |
+| `sensor_delay` | Stale state for N cycles | Delayed response; overshoot on fast motions |
+| `actuator_stuck` | Specific joints frozen | Arm cannot reach target; task fails |
+| `controller_dropout` | All commands zeroed | Robot goes limp; immediate failure |
+| `gravity_shift` | Gravity vector changed | Objects drift; grasp timing breaks |
+
+### ML training configuration
+
+From `config/training.yaml`:
+
+| Parameter | Value |
+|---|---|
+| Architecture | MLP `[256, 256, 128]` |
+| Observation dim | 31 (joint pos + joint vel + EE pose + object pos) |
+| Action dim | 8 (7 joints + gripper) |
+| Epochs | 100 |
+| Batch size | 64 |
+| Learning rate | 0.001 |
+| Validation split | 10% |
+
+### Edge inference
+
+`OnnxPolicy.benchmark()` measures inference latency. ONNX Runtime on CPU typically yields sub-millisecond inference for this model size (31→8 through three hidden layers). Actual numbers depend on hardware — run `forge_deploy.py --benchmark` to measure on your machine.
+
+### Regression detection
+
+The regression gate (default threshold: 10% from `config/regression.yaml`) compares new evaluation results against stored baselines.
+
+Example scenario: if `pick_red_cube` sim time increases from 5.1s to 6.0s (18% regression), the gate blocks the change. A 5% increase to 5.35s would pass. The regression CI workflow (`regression.yml`) runs this check automatically on pull requests.
+
+## Limitations and Roadmap
+
+### Intentional prototype choices
+
+Forge uses **JSON-based file storage** for experiments, model registry, fleet state, and OTA data. This is a deliberate design choice to keep the project self-contained and dependency-light:
+
+| Limitation | Impact | Production alternative |
+|---|---|---|
+| No concurrent-write safety | Single-user only | PostgreSQL or managed database |
+| No transactional guarantees | Partial writes on crash | Database transactions |
+| Limited querying | Linear scan of JSON files | SQL queries, indexed storage |
+| No access control | Anyone with file access can modify | IAM, role-based access |
+| Poor multi-site scalability | Everything is local | Object storage (S3/GCS), artifact registry |
+| Limited auditability | No structured audit log | Append-only event log, observability platform |
+
+### Hardware limitations
+
+- **`SimulatedRobot` is the only `RobotInterface` implementation.** No physical robot has been connected or validated.
+- The hardware abstraction layer is designed for extension, but hardware abstraction is not validated hardware integration.
+- If asked in an interview: describe this as a *hardware-ready abstraction with simulation support*, not as physical robot integration.
+
+### Safety scope
+
+Forge's `SafetyMonitor` is a **software safety-monitoring layer**, not a certified safety system. See the Safety Architecture section for details.
+
+### Roadmap
+
+| Priority | Item |
+|---|---|
+| 1 | Physical robot driver (implement `RobotInterface` for a real arm) |
+| 2 | PostgreSQL-backed experiment and model storage |
+| 3 | Object storage for artifacts and telemetry |
+| 4 | Complete vision-based policy path |
+| 5 | Hardware safety integration (e-stop, watchdog) |
+| 6 | Cloud deployment infrastructure |
+| 7 | TensorRT optimization with actual GPU testing |
+
+## Safety Architecture
+
+### What SafetyMonitor does (`forge_core/safety.py`)
+
+The `SafetyMonitor` performs three checks before every command is sent to the robot:
+
+| Check | Config source | Limits |
+|---|---|---|
+| **Joint position limits** | `config/safety.yaml` | 7-joint Panda bounds (e.g., J1: ±2.9 rad) |
+| **Velocity limits** | `config/safety.yaml` | Per-joint max velocity (2.2–2.6 rad/s) |
+| **Workspace boundary** | `config/safety.yaml` | XY: ±1.0m, Z: 0.0–1.5m |
+
+On violation: the monitor logs the violation, flags the command as unsafe, and delegates to `emergency_stop()`.
+
+### What production robot safety additionally requires
+
+Forge's safety module covers software-level command validation. A production-deployed robot requires significantly more:
+
+- **Emergency-stop hardware integration** — physical e-stop button wired to motor power
+- **Watchdog timers** — hardware watchdog that stops the robot if software hangs
+- **Communication-loss handling** — safe behavior when control link drops
+- **Collision detection** — force/torque sensing or external monitoring
+- **Power and braking behavior** — controlled deceleration, brake engagement on power loss
+- **Safe-state transitions** — defined recovery states after fault detection
+- **Operator permissions** — role-based access to robot control modes
+- **Hardware interlocks** — physical guards, light curtains, safety-rated sensors
+- **Formal risk assessment** — ISO 10218, ISO/TS 15066 compliance documentation
+
+Position Forge's safety as what it is: a software pre-check layer that validates commands before execution, useful for development and simulation, but not a substitute for certified robot safety systems.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Ubuntu 22.04/24.04
+- Ubuntu 22.04 or 24.04
 - Python 3.10+
-- ROS 2 Humble or Jazzy (optional — evaluation works without ROS)
+- ROS 2 Humble or Jazzy (optional — all evaluation works without ROS)
 
 ### Install
 
 ```bash
-pip install mujoco mujoco_menagerie numpy PyYAML opencv-python-headless pytest
-pip install -e '.[ml]'  # PyTorch for learned policies (optional)
+pip install -e '.[dev,ml]'       # core + pytest + PyTorch
+pip install -e '.[dev,ml,edge]'  # also include ONNX/ONNXRuntime
 ```
 
 ### Verify
 
 ```bash
-python3 -m pytest tests/ -v     # 384 tests, no ROS needed
-python3 scripts/forge_doctor.py  # health check
+python3 -m pytest tests/ -v       # 384 tests, no ROS needed
+python3 scripts/forge_doctor.py   # health check
 ```
 
-### Evaluate a task
+### Core workflows
 
 ```bash
+# Evaluate a task
 python3 scripts/forge_eval.py --task pick_red_cube
 python3 scripts/forge_eval.py --suite manipulation-v1
-```
 
-### Record a run
-
-```bash
+# Record and replay
 python3 scripts/forge_eval.py --task pick_red_cube --record
-python3 scripts/forge_replay.py --list
 python3 scripts/forge_replay.py runs/run_00001/
-```
 
-### Chaos testing
-
-```bash
-python3 scripts/forge_chaos.py --list
+# Chaos testing
 python3 scripts/forge_chaos.py --task pick_red_cube --fault object_moved
 python3 scripts/forge_chaos.py --task pick_red_cube --fault cascading --compare
-python3 scripts/forge_chaos.py --task pick_red_cube --inject controller_dropout --at 3 --duration 2
-```
 
-
-### Perception
-
-```bash
-python3 scripts/forge_perception.py --scenario basic_workspace --render -o frame.png
+# Perception
 python3 scripts/forge_perception.py --scenario basic_workspace --detect --annotate -o detections.png
-```
 
-### Training a Learned Policy
-
-```bash
+# Train a learned policy
 python3 scripts/forge_train.py --task pick_red_cube --episodes 5
-python3 scripts/forge_train.py --from-run runs/run_00001/ runs/run_00002/
-python3 scripts/forge_train.py --config config/training.yaml --task pick_red_cube --episodes 1
-python3 scripts/forge_train.py --list-models
 python3 scripts/forge_eval.py --task pick_red_cube --policy learned --model-path models/bc_policy.pt
-```
 
-### Experiment Tracking & Model Registry
-
-```bash
-# List all experiments
+# Experiment and model registry
 python3 scripts/forge_registry.py experiments list
-
-# Show a specific experiment
-python3 scripts/forge_registry.py experiments show exp_00001
-
-# Compare two experiments side by side
-python3 scripts/forge_registry.py experiments compare exp_00001 exp_00002
-
-# List registered models
-python3 scripts/forge_registry.py models list
-
-# Show model details
-python3 scripts/forge_registry.py models show bc_pick_red_cube
-
-# Promote a model through stages
 python3 scripts/forge_registry.py models promote bc_pick_red_cube --version 1 --stage validated
 
-# Evaluate a model from the registry
-python3 scripts/forge_eval.py --task pick_red_cube --policy learned --registry-model bc_pick_red_cube
-```
-
-
-### Regression Testing
-
-```bash
-# Create a baseline from current evaluation results
+# Regression testing
 python3 scripts/forge_regression.py --create-baseline --suite manipulation-v1
-
-# Check for regressions against baseline
 python3 scripts/forge_regression.py --check --suite manipulation-v1
 
-# Show saved baseline
-python3 scripts/forge_regression.py --show-baseline --suite manipulation-v1
-
-# Update baseline after intentional changes
-python3 scripts/forge_regression.py --update-baseline --suite manipulation-v1
-
-# Compare two baselines
-python3 scripts/forge_regression.py --compare baselines/old.json baselines/new.json
-```
-
-### Edge Deployment
-
-```bash
-# Export a trained model to ONNX
+# Edge deployment
 python3 scripts/forge_deploy.py --export --model models/bc_policy.pt --output models/bc_policy.onnx
-
-# Validate ONNX model against PyTorch checkpoint
 python3 scripts/forge_deploy.py --validate --model models/bc_policy.onnx --checkpoint models/bc_policy.pt
-
-# Benchmark inference latency
 python3 scripts/forge_deploy.py --benchmark --model models/bc_policy.onnx --n-iterations 200
-
-# Package model for deployment
 python3 scripts/forge_deploy.py --package --model models/bc_policy.onnx --output deploy/ --name bc_pick_red_cube
-```
 
-### Fleet & OTA
-
-```bash
-# Register a device
+# Fleet and OTA
 python3 scripts/forge_fleet.py devices register --id arm-01 --name "Panda Arm 01" --type panda
-
-# List devices
-python3 scripts/forge_fleet.py devices list
-
-# Update device status
-python3 scripts/forge_fleet.py devices status --id arm-01 --set online
-
-# Create an OTA update package
 python3 scripts/forge_fleet.py ota create-package --source-dir deploy/bc_policy/ --version 1.0.0 --model-name bc_pick
-
-# Deploy to a device group
 python3 scripts/forge_fleet.py ota deploy --package-id pkg_00001 --target-group production
-
-# Rollback a deployment
 python3 scripts/forge_fleet.py ota rollback --rollout-id rollout_00001 --force
 
-# Fleet overview dashboard
-python3 scripts/forge_fleet.py overview
-```
-
-### Physical Robot
-```bash
-# Connect to a simulated robot
+# Robot (simulated)
 python3 scripts/forge_robot.py connect --type simulated --scenario basic_workspace
-# Run a policy on the robot
-python3 scripts/forge_robot.py run --policy null --task pick_and_place_basic
-# Safety check
 python3 scripts/forge_robot.py safety-check
-# Calibrate joint offsets
-python3 scripts/forge_robot.py calibrate
-# Compare sim vs real trajectories
-python3 scripts/forge_robot.py compare-sim
-# Robot status
-python3 scripts/forge_robot.py status
+
+# ROS 2 (optional)
+python3 scripts/run_forge.py
+ros2 topic echo /forge/joint_states --once
 ```
 
-### ROS 2 (optional)
+## Contributing and Development
+
+### Prerequisites
+
+| Dependency | Version | Required |
+|---|---|---|
+| Python | ≥ 3.10 | Yes |
+| mujoco | ≥ 3.1.0 | Yes |
+| numpy | ≥ 1.24.0 | Yes |
+| PyYAML | ≥ 6.0 | Yes |
+| opencv-python-headless | ≥ 4.8.0 | Yes |
+| pytest | ≥ 7.0 | Dev |
+| torch | ≥ 2.0 | ML features |
+| onnx | ≥ 1.14.0 | Edge deployment |
+| onnxruntime | ≥ 1.15.0 | Edge deployment |
+
+### Setup
 
 ```bash
-python3 scripts/run_forge.py                              # start system
-ros2 topic echo /forge/joint_states --once                # read state
-ros2 service call /forge/reset std_srvs/srv/Trigger       # reset
+git clone <repo-url> && cd forge
+pip install -e '.[dev,ml]'
+python3 -m pytest tests/ -v        # all 384 tests should pass
+python3 scripts/forge_doctor.py    # verify environment
 ```
 
-## Project Structure
+### Project structure
 
 ```
-forge/
-├── forge_core/              # Core library (no ROS dependency)
-│   ├── simulation.py        # MuJoCo simulation engine
-│   ├── menagerie.py         # Menagerie model locator
-│   ├── task.py              # Task specification loading
-│   ├── policy.py            # Policy interface + scripted policies
-│   ├── evaluator.py         # Success criteria evaluation
-│   ├── runner.py            # Task execution orchestrator
-│   ├── faults.py            # Fault injection system
-│   ├── recorder.py          # Trajectory recording
-│   ├── replay.py            # Run replay and inspection
-│   ├── perception.py        # Camera rendering + object detection
-│   ├── learned_policy.py    # PyTorch learned policy + BC training
-│   ├── experiment.py        # Experiment tracking (JSON-based)
-│   ├── model_registry.py    # Model registry with stage lifecycle
-│   ├── regression.py        # Regression evaluation and baseline management
-│   ├── edge_deploy.py       # ONNX export, TensorRT optimization, edge inference
-│   ├── fleet.py             # Fleet device management (JSON-based)
-│   ├── ota.py               # OTA update system (packages, rollouts, history)
-│   ├── hardware.py          # Hardware abstraction layer (RobotInterface ABC)
-│   ├── safety.py            # Safety monitoring system
-│   ├── sim2real.py          # Sim-to-real transfer utilities
-│   └── config.py            # YAML configuration loading
-├── ros2_ws/src/
-│   ├── forge_sim/           # Simulator node + object state + reset
-│   ├── forge_control/       # Joint command controller
-│   └── forge_state/         # Robot state publisher
-├── simulation/
-│   ├── models/              # Robot MJCF models (Menagerie)
-│   ├── worlds/              # Scene definitions
-│   └── scenarios/           # YAML scenario configurations
-├── tasks/                   # Task YAML definitions
-│   ├── pick_red_cube.yaml
-│   ├── pick_blue_cube.yaml
-│   ├── pick_both_cubes.yaml
-│   ├── pick_red_cube_spread.yaml
-│   └── suites/
-│       └── manipulation-v1.yaml
-├── faults/                  # Fault profile YAML definitions
-│   ├── object_moved.yaml
-│   ├── sensor_noise.yaml
-│   ├── controller_dropout.yaml
-│   ├── gravity_shift.yaml
-│   └── cascading.yaml
-├── experiments/             # Experiment tracking data (JSON per experiment)
-├── registry/                # Model registry (registry.json)
-├── baselines/               # Regression baselines (JSON per suite)
-├── fleet/                   # Fleet device registry (devices.json)
-├── ota/                     # OTA data (packages.json, rollouts.json, history/)
-├── runs/                    # Recorded run outputs
-├── models/                  # Saved model .pt files
-├── tests/
-│   ├── unit/                # 384 unit tests
-│   └── integration/         # Acceptance tests
-├── scripts/
-│   ├── run_forge.py         # Single-process ROS 2 launcher
-│   ├── forge_doctor.py      # Health check
-│   ├── forge_eval.py        # Task evaluation CLI
-│   ├── forge_chaos.py       # Chaos testing CLI
-│   ├── forge_replay.py      # Run replay CLI
-│   ├── forge_perception.py  # Perception CLI
-│   ├── forge_train.py       # Training CLI
-│   ├── forge_registry.py   # Experiment & model registry CLI
-│   ├── forge_regression.py  # Regression testing CLI
-│   ├── forge_deploy.py      # Edge deployment CLI
-│   ├── forge_fleet.py       # Fleet & OTA management CLI
-│   └── forge_robot.py       # Physical robot CLI
-├── config/
-│   ├── default.yaml
-│   ├── training.yaml        # ML training configuration
-│   ├── regression.yaml      # Regression evaluation thresholds
-│   ├── deploy.yaml          # Edge deployment configuration
-│   ├── fleet.yaml           # Fleet & OTA configuration
-│   ├── robot.yaml           # Robot connection & sim-to-real configuration
-│   └── safety.yaml          # Safety limits configuration
-├── .github/workflows/       # CI/CD pipeline definitions
-│   ├── ci.yml               # Test workflow (Python matrix)
-│   └── regression.yml       # Regression evaluation workflow
-└── docs/
-    ├── architecture.md      # System design (all phases)
-    └── setup.md             # Installation and usage guide
+forge_core/          22 modules — core library, zero ROS dependency
+scripts/             12 CLI tools (eval, chaos, replay, train, deploy, fleet, etc.)
+tests/unit/          23 test files (unit tests)
+tests/integration/   1 acceptance test
+config/              7 YAML configs (training, regression, safety, deploy, fleet, robot, default)
+tasks/               4 task YAMLs + 1 suite definition
+faults/              5 fault profiles
+baselines/           1 baseline JSON (manipulation-v1)
+docs/                architecture.md + setup.md
+ros2_ws/             Optional ROS 2 nodes (not required for core functionality)
 ```
+
+### Code conventions
+
+- **Type hints** throughout — all function signatures are annotated
+- **Dataclasses** for structured data, **ABCs** for interfaces
+- **stdlib logging** — no custom logging framework
+- **Docstrings** on public classes and methods
+- **No ROS dependency** in `forge_core/` — ROS nodes are isolated in `ros2_ws/`
+- Tests use **pytest fixtures** with `tmp_path` for isolation
+
+## How to Explain Forge
+
+### 30-second pitch
+
+> I built Forge as a reliability and deployment platform for ML-powered robots. Instead of only training a policy in simulation, Forge lets me define measurable tasks, run policies, record and replay trajectories, inject realistic failures, detect regressions in CI, export models for edge inference, and manage staged fleet updates with rollback support. I designed it around the problems that appear after a robot leaves the notebook: reproducibility, debugging, safety, deployment, and operational reliability.
+
+### Interview walkthrough order
+
+1. **Problem** — Robotics teams struggle to validate changes consistently after a policy leaves research.
+2. **Core loop** — Task definition → execution → evaluation → telemetry → replay.
+3. **Reliability** — Fault injection with 6 failure types and regression baselines.
+4. **ML lifecycle** — Behavioral cloning, experiment tracking, model registry with stage promotion.
+5. **Production path** — ONNX export, edge packaging, fleet OTA with canary/staged rollout.
+6. **Safety** — Software limit checks on joint position, velocity, and workspace boundaries.
+7. **Trade-offs** — Local JSON storage and simulated hardware were chosen to keep the project reproducible and dependency-light.
+8. **Next step** — Replace local registries with production services and validate on real hardware.
 
 ## Fault Types
 
 | Type | Effect |
-|------|--------|
+|---|---|
 | `object_moved` | Teleport an object to a new position mid-run |
 | `sensor_noise` | Gaussian noise on joint position readings |
 | `sensor_delay` | Return stale robot state for N cycles |
@@ -315,26 +345,10 @@ forge/
 | `controller_dropout` | Zero all commands — robot goes limp |
 | `gravity_shift` | Change gravity vector mid-run |
 
-## Phase Roadmap
-
-| Phase | Status | Capability |
-|-------|--------|-----------|
-| 1 | Done | Simulation foundation |
-| 2 | Done | Task execution & evaluation |
-| 3 | Done | Telemetry & replay |
-| 4 | Done | Failure injection / chaos testing |
-| 5 | Done | Perception (camera + OpenCV) |
-| 6 | Done | Learned policy (PyTorch) |
-| 7 | Done | ML infrastructure (experiment tracking, model registry) |
-| 8 | Done | CI/CD (regression evaluation) |
-| 9 | Done | Edge deployment (ONNX, TensorRT) |
-| 10 | Done | Fleet & OTA |
-| 11 | Done | Physical robot support |
-
 ## Documentation
 
-- [Architecture](docs/architecture.md) — system design across all phases
-- [Setup Guide](docs/setup.md) — installation, usage, and all CLI commands
+- [Architecture](docs/architecture.md) — system design across all modules
+- [Setup Guide](docs/setup.md) — installation, usage, and CLI reference
 
 ## License
 
