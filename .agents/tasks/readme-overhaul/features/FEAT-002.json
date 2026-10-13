@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-002",
+  "type": "docs",
+  "description": "Update docs/architecture.md to be consistent with the new README. Depends on FEAT-001 (must read the new README to ensure consistency).",
+  "status": "completed",
+  "steps": [
+    "Read context.json for project context — do NOT re-explore the codebase.",
+    "Read the newly written README.md (from FEAT-001) to understand the new structure, diagram, and honesty tiers.",
+    "Read the existing docs/architecture.md to understand its current structure and content.",
+    "Update docs/architecture.md with the following changes:",
+    "UPDATE 1 — Overview: Replace the opening overview to match the new README opening. Remove the 'Phases 1-11 complete' language and replace with honest capability tiers.",
+    "UPDATE 2 — System Diagram: Replace the existing ASCII art diagram with a valid Mermaid flowchart. This can be the same diagram from the README or a more detailed version showing internal module relationships. Must be valid Mermaid that renders on GitHub.",
+    "UPDATE 3 — Add honesty annotations throughout: For each phase section, add a brief note at the top indicating whether that capability is 'Implemented and tested', 'Simulated adapters only', or 'Prototype'. For example, Phase 11 Physical Robot Support should note 'SimulatedRobot only — no physical robot drivers exist in the codebase.'",
+    "UPDATE 4 — Fleet & OTA section (Phase 10): Add a note that all operations are local file-based simulations, no network calls or real device communication.",
+    "UPDATE 5 — Phase 11 section: Explicitly state that only SimulatedRobot implements RobotInterface. The safety system is a software monitoring layer. Sim-to-real utilities operate on synthetic data.",
+    "UPDATE 6 — Edge Deployment section (Phase 9): Note that TensorRT path is prototype-only (never installed in CI). ONNX path is tested.",
+    "UPDATE 7 — Add a Limitations section at the end consistent with the README's Limitations and Roadmap section.",
+    "Keep all the detailed per-phase technical documentation (API tables, code blocks, CLI examples) — these are valuable. Only add honesty context and update the overview/diagram.",
+    "Ensure all claims in architecture.md are consistent with the README — no contradictions between the two files."
+  ],
+  "acceptance_criteria": [
+    "docs/architecture.md exists and is valid markdown",
+    "The overview section is consistent with the new README opening",
+    "A Mermaid diagram replaces or supplements the ASCII art diagram",
+    "Each phase section has a brief honesty annotation (tested / simulated / prototype)",
+    "Phase 11 explicitly states SimulatedRobot is the only implementation",
+    "Phase 10 notes that fleet/OTA operations are local simulations",
+    "Phase 9 notes TensorRT is prototype-only",
+    "A Limitations section exists at the end",
+    "No contradictions between README.md and docs/architecture.md",
+    "Running 'python3 -m pytest tests/ -v' still passes all 384 tests"
+  ],
+  "verification": [
+    "python3 -m pytest tests/ -v — all 384 tests pass (documentation-only change should not affect tests)"
+  ],
+  "blocked_reason": null,
+  "findings": "Updated docs/architecture.md: replaced ASCII diagram with two Mermaid diagrams (pipeline + internal modules), rewrote overview to match README opening with implementation status table, added honesty annotations to all 11 phase sections, added explicit notes for Phase 9 (TensorRT prototype), Phase 10 (local file-based simulations), Phase 11 (SimulatedRobot only, software safety, synthetic data), and added Limitations section at end with JSON storage, hardware, safety scope, TensorRT subsections plus roadmap. All 384 tests pass."
+}
